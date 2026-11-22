@@ -161,7 +161,7 @@ final class Diagnostics
 
     /**
      * Counts only: how many users match the e-mail exactly, and for a single match how many
-     * requests and assets ServiceDesk Plus returns for that user.
+     * requests, assets and loans (current and returned) ServiceDesk Plus returns for that user.
      *
      * @return list<string>
      */
@@ -198,6 +198,7 @@ final class Diagnostics
         $checks = [
             'Requests of this requester (requester.id)' => ['/api/v3/requests', 'requester.id'],
             'Assets of this user (user.id)'             => ['/api/v3/assets', 'user.id'],
+            'Loans of this user (loaned_to.id)'         => ['/api/v3/asset_loans', 'loaned_to.id'],
         ];
 
         foreach ($checks as $label => [$path, $field]) {

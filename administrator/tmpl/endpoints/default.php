@@ -85,7 +85,7 @@ $types  = [
                 <tr>
                     <th scope="row"><code><?php echo $e($ep['path']); ?></code><?php if ($ep['portal'] !== '') : ?> <span class="badge bg-info text-dark"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_PORTAL'); ?></span><?php endif; ?></th>
                     <td class="small"><span class="text-muted"><?php echo $e($ep['section']); ?>:</span> <?php echo $e($ep['summary']); ?>
-                        <a href="<?php echo $e($ep['doc']); ?>" target="_blank" rel="noopener noreferrer"><span class="icon-out-2" aria-hidden="true"></span><span class="visually-hidden"><?php echo Text::sprintf('COM_SERVICEDESKPLUS_ENDPOINTS_DOC_LINK', $e($ep['summary'])); ?></span></a></td>
+                        <?php if ($ep['doc'] !== '') : ?><a href="<?php echo $e($ep['doc']); ?>" target="_blank" rel="noopener noreferrer"><span class="icon-out-2" aria-hidden="true"></span><span class="visually-hidden"><?php echo Text::sprintf('COM_SERVICEDESKPLUS_ENDPOINTS_DOC_LINK', $e($ep['summary'])); ?></span></a><?php endif; ?></td>
                     <td class="small"><?php echo $e($ep['portal']); ?></td>
                     <td class="small">
                         <?php if ($r === null) : ?>
