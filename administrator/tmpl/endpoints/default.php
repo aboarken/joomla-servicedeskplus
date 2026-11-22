@@ -33,7 +33,7 @@ $types  = [
             <form method="post" action="<?php echo $action; ?>" class="row g-2 align-items-end">
                 <input type="hidden" name="task" value="endpoints.diagnose">
                 <?php echo $token; ?>
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-9">
                     <label class="form-label" for="sdp-diag-email"><?php echo Text::_('COM_SERVICEDESKPLUS_DIAG_EMAIL'); ?></label>
                     <input class="form-control" type="email" id="sdp-diag-email" name="email" maxlength="320" autocomplete="off" value="<?php echo $e($diag['email'] ?? ''); ?>">
                 </div>
