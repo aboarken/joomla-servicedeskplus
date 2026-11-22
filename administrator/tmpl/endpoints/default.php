@@ -33,7 +33,7 @@ $types  = [
             <form method="post" action="<?php echo $action; ?>" class="row g-2 align-items-end">
                 <input type="hidden" name="task" value="endpoints.diagnose">
                 <?php echo $token; ?>
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-9">
                     <label class="form-label" for="sdp-diag-email"><?php echo Text::_('COM_SERVICEDESKPLUS_DIAG_EMAIL'); ?></label>
                     <input class="form-control" type="email" id="sdp-diag-email" name="email" maxlength="320" autocomplete="off" value="<?php echo $e($diag['email'] ?? ''); ?>">
                 </div>
@@ -85,7 +85,7 @@ $types  = [
                 <tr>
                     <th scope="row"><code><?php echo $e($ep['path']); ?></code><?php if ($ep['portal'] !== '') : ?> <span class="badge bg-info text-dark"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_PORTAL'); ?></span><?php endif; ?></th>
                     <td class="small"><span class="text-muted"><?php echo $e($ep['section']); ?>:</span> <?php echo $e($ep['summary']); ?>
-                        <a href="<?php echo $e($ep['doc']); ?>" target="_blank" rel="noopener noreferrer"><span class="icon-out-2" aria-hidden="true"></span><span class="visually-hidden"><?php echo Text::sprintf('COM_SERVICEDESKPLUS_ENDPOINTS_DOC_LINK', $e($ep['summary'])); ?></span></a></td>
+                        <?php if ($ep['doc'] !== '') : ?><a href="<?php echo $e($ep['doc']); ?>" target="_blank" rel="noopener noreferrer"><span class="icon-out-2" aria-hidden="true"></span><span class="visually-hidden"><?php echo Text::sprintf('COM_SERVICEDESKPLUS_ENDPOINTS_DOC_LINK', $e($ep['summary'])); ?></span></a><?php endif; ?></td>
                     <td class="small"><?php echo $e($ep['portal']); ?></td>
                     <td class="small">
                         <?php if ($r === null) : ?>

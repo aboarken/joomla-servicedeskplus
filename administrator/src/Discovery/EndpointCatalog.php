@@ -29,7 +29,8 @@ final class EndpointCatalog
     public const DOCS = 'https://servicedeskplus.docs.buildwithfern.com/servicedesk-plus-on-premise/';
 
     /**
-     * path => [name in the API collection, section, documentation page, portal pages that read it ('' = none)].
+     * path => [name in the API collection, section, documentation page ('' = not in the collection),
+     * portal pages that read it ('' = none)].
      */
     private const ENDPOINTS = [
         '/api/v3/requests'              => ['View all Requests', 'Request', 'request/request/view-all-requests', 'My Requests, Dashboard, My Approvals'],
@@ -38,6 +39,7 @@ final class EndpointCatalog
         '/api/v3/releases'              => ['View all Releases', 'Release', 'release/release/view-all-releases', 'My Approvals'],
         '/api/v3/purchase_orders'       => ['View all purchase orders', 'Purchase', 'purchase/purchase-order/view-all-purchase-orders', 'My Approvals'],
         '/api/v3/assets'                => ['Get all assets', 'Asset (old)', 'asset/asset-old/get-all-assets', 'My Loans, Dashboard'],
+        '/api/v3/asset_loans'           => ['Asset loans', 'Asset', '', 'My Loans (Returned), Dashboard'],
         '/api/v3/announcements'         => ['View All Announcements', 'Common', 'common/announcements/view-all-announcements', 'Announcements, Dashboard'],
         '/api/v3/users'                 => ['Get all users', 'Common', 'common/user/get-all-users', 'User Mappings, sign-in matching'],
         '/api/v3/request_templates'     => ['Get Incident Templates / Get Service Templates', 'Request', 'request/request-templates/get-incident-templates', ''],
@@ -64,7 +66,7 @@ final class EndpointCatalog
         '/api/v3/sites'                 => ['View all sites', 'Common', 'common/site/view-all-sites', ''],
         '/api/v3/regions'               => ['View all Regions', 'Common', 'common/region/view-all-regions', ''],
         '/api/v3/departments'           => ['Get all departments', 'Common', 'common/department/get-all-departments', ''],
-        '/api/v3/categories'            => ['View All Categories', 'Common', 'common/category/view-all-categories', ''],
+        '/api/v3/categories'            => ['View All Categories', 'Common', 'common/category/view-all-categories', 'My Requests (Category filter)'],
         '/api/v3/items'                 => ['View All Items', 'Common', 'common/item/view-all-items', ''],
         '/api/v3/statuses'              => ['View All Statuses', 'Common', 'common/status/view-all-statuses', ''],
         '/api/v3/priorities'            => ['View All Priorities', 'Common', 'common/priority/view-all-priorities', ''],
@@ -94,7 +96,7 @@ final class EndpointCatalog
         $out = [];
 
         foreach (self::ENDPOINTS as $path => [$summary, $section, $doc, $portal]) {
-            $out[] = ['path' => $path, 'summary' => $summary, 'section' => $section, 'doc' => self::DOCS . $doc, 'portal' => $portal];
+            $out[] = ['path' => $path, 'summary' => $summary, 'section' => $section, 'doc' => $doc !== '' ? self::DOCS . $doc : '', 'portal' => $portal];
         }
 
         return $out;

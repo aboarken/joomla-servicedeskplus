@@ -3,6 +3,16 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.31.7] - 2026-11-22
+
+### Changed
+- **Find Endpoints:**
+  - **Diagnostics:** the requester e-mail and *Run Diagnostics* now fill the row.
+  - **`/api/v3/asset_loans`** is now in the list as an endpoint the portal reads (*My Loans → Returned*, Dashboard), so the check and Diagnostics test it.
+  - **`/api/v3/categories`** is marked as read by the portal (*My Requests*, Category filter), so Diagnostics shows its fields.
+  - The requester check in Diagnostics also counts the person's loans (`loaned_to.id`).
+  - The report shows whether new users matched by e-mail are approved automatically or wait for an administrator.
+
 ## [1.31.6] - 2026-11-22
 
 ### Security

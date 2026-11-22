@@ -213,6 +213,7 @@ final class EndpointsController extends BaseController
                 'Cache (minutes)'         => (string) $settings->cacheMinutes(),
                 'Approval modules'        => implode(', ', $settings->approvalModules()) ?: '(none)',
                 'API technician e-mail set' => $settings->approvalAccountEmail() !== '' ? 'yes' : 'no',
+                'New users matched by e-mail' => $settings->autoApproveMatches() ? 'approved automatically' : 'wait for an administrator',
             ]);
         } catch (SdpException $e) {
             $report = 'ServiceDesk Plus portal diagnostics' . "\n" . 'FAILED before the first request: ' . Diagnostics::error($e);
