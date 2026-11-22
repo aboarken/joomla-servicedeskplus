@@ -43,6 +43,9 @@ final class EndpointsController extends BaseController
     {
         throw new RouteNotFoundException(Text::_('JERROR_PAGE_NOT_FOUND'), 404);
     }
+    /** Warnings a run can give (COM_SERVICEDESKPLUS_ENDPOINTS_WARN_<name>). */
+    public const WARNINGS = ['HTTP', 'TLS_OFF', 'NO_ACCOUNT'];
+
     public const STATE_RUN   = 'com_servicedeskplus.endpoints.run';
     public const STATE_CHECK = 'com_servicedeskplus.endpoints.check';
 

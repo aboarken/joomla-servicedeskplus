@@ -3,6 +3,11 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.32.5] - 2026-11-22
+
+### Fixed
+- **Find Endpoints showed `COM_SERVICEDESKPLUS_ENDPOINTS_WARN_AUTO_MATCH`** after updating to 1.32.3 or later. A run made before the update was still kept in the administrator's session with the removed warning. The page now shows only the warnings this version knows.
+
 ## [1.32.4] - 2026-11-22
 
 ### Changed
