@@ -174,8 +174,8 @@ $detail = function (array $row) use ($e): string {
         </section>
     <?php endif; ?>
 
-    <details class="card mb-3" id="sdp-advanced"<?php echo $check !== null || $this->selected !== '' ? ' open' : ''; ?>>
-        <summary class="card-header h5 mb-0"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_ADVANCED'); ?></summary>
+    <section class="card mb-3" id="sdp-advanced">
+        <h2 class="card-header h5 mb-0"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_ADVANCED'); ?></h2>
         <div class="card-body">
             <h3 class="h5"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_OTHERS'); ?></h3>
             <p class="small text-muted"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_STEP1_HELP'); ?></p>
@@ -269,5 +269,5 @@ $detail = function (array $row) use ($e): string {
         <?php endif; ?>
     <?php endif; ?>
         </div>
-    </details>
+    </section>
 </div>
