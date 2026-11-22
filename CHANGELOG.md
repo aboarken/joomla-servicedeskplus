@@ -3,6 +3,14 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] - Repository security
+
+### Changed
+- **Release workflow:** `actions/checkout` and `actions/upload-artifact` are pinned to exact commits (v7.0.1, v7.0.2) instead of the moving `@v4` tags, because the release job may write releases.
+- **Dependabot** (`.github/dependabot.yml`): a weekly pull request when a pinned action has a new version.
+- **CODEOWNERS** (`.github/CODEOWNERS`): the owner reviews every change, in particular the workflow, the build scripts, the update server files, the manifest and the install script.
+- README: how to report a security problem and how the release is protected.
+
 ## [1.31.5] - 2026-11-20
 
 ### Fixed

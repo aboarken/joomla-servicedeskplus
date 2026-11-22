@@ -172,7 +172,7 @@ The component is designed to work with Joomla's access control system (ACL).
 
 Administrators can manage access permissions for the component and its available functionality (*Components → ServiceDesk Plus → Options → Permissions*). The portal's own permissions (view requests, create requests, view and decide approvals, view loans, view announcements) are **not granted to any group after installation**, except Super Users: grant them to the user groups that should use each page.
 
-To report a security problem, see [SECURITY.md](SECURITY.md).
+To report a security problem, see [SECURITY.md](SECURITY.md) (privately, through the repository's **Security** tab; never in a public issue). The release workflow's actions are pinned to exact commits and kept up to date by Dependabot (`.github/dependabot.yml`); changes to the workflow, the build scripts, the update server files and the manifest are reviewed by the code owner (`.github/CODEOWNERS`).
 
 API credentials should be stored securely and should never be exposed to frontend users or committed to the source repository.
 
@@ -205,8 +205,10 @@ com_servicedeskplus/
 │   ├── layouts/
 │   ├── src/
 │   └── tmpl/
-├── .github/workflows/
-│   └── release.yml
+├── .github/
+│   ├── CODEOWNERS
+│   ├── dependabot.yml
+│   └── workflows/release.yml
 ├── build/
 │   ├── build-package.sh
 │   ├── make-changelog-xml.py

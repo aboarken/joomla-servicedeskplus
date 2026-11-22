@@ -28,7 +28,7 @@ jobs:
       contents: write
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, pinned to the commit: this job may write releases
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
 
@@ -75,7 +75,7 @@ jobs:
           python3 -I -c "import xml.etree.ElementTree as E, sys; v = E.parse('dist/changelog.xml').getroot()[0].findtext('version'); sys.exit(0 if v == '${{ steps.version.outputs.version }}' else 'changelog.xml starts with ' + str(v) + ', expected the manifest version')"
 
       - name: Keep package as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: com_servicedeskplus-${{ steps.version.outputs.version }}
           path: |
