@@ -64,8 +64,8 @@ $detail = function (array $row) use ($e): string {
             </div>
         <?php endif; ?>
 
-        <div class="row">
-            <div class="col-lg-6 mb-3">
+        <div class="row g-3 mb-3">
+            <div class="col-lg-6">
                 <section class="card h-100">
                     <div class="card-body">
                         <h2 class="h5"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_SERVER'); ?></h2>
@@ -87,7 +87,7 @@ $detail = function (array $row) use ($e): string {
                     </div>
                 </section>
             </div>
-            <div class="col-lg-6 mb-3">
+            <div class="col-lg-6">
                 <section class="card h-100">
                     <div class="card-body">
                         <h2 class="h5"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_KEY'); ?></h2>
