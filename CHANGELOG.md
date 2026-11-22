@@ -3,6 +3,19 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.32.0] - 2026-11-22
+
+### Changed
+- **Find Endpoints is organised like the other portals' pages: the answer first, exploring last.**
+  - **One run:** *Find Endpoints*, on the page or in the toolbar, with the optional requester e-mail, runs every check at once. It replaces *Run Diagnostics* and *Check which endpoints answer*.
+  - **Warnings at the top:** an http address, the certificate check turned off, no API technician e-mail, or new users matched automatically.
+  - **Server card:** address, certificate (verified, pinned key or not checked), connect via, timeouts, response time and when it was checked.
+  - **API key card:** whether the key was accepted, how many requests the API technician sees, the API technician e-mail, which approvals are shown, how new users are matched, and the cache.
+  - **Endpoints the portal uses:** a table with what each is used for, its result (*Allowed*, *Refused*, *Not on this build*, *Error*), its time and its rows.
+  - **Requester card** when an e-mail is given: whether the person can be matched, and their requests, assets and loans.
+  - **Diagnostics report** to copy, as before. It now also lists the warnings and each endpoint's time.
+  - **Advanced** (closed until used): the other known endpoints with their results and documentation links, and *Check an Endpoint*.
+
 ## [1.31.7] - 2026-11-22
 
 ### Changed
