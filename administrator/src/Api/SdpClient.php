@@ -389,6 +389,38 @@ final class SdpClient
     }
 
     /**
+     * The approval comment with <, > and & written as entities, at most $max characters, cut
+     * between characters (never inside an entity). ServiceDesk Plus may show the comment as HTML
+     * to technicians, so a comment or a Joomla name with markup must not become markup there.
+     * The portal reads comments back through HtmlText::toPlain, which decodes them again.
+     */
+    public static function encodeComment(string $plain, int $max): string
+    {
+        $out    = '';
+        $length = 0;
+
+        foreach (mb_str_split($plain) as $char) {
+            $piece = match ($char) {
+                '<'     => '&lt;',
+                '>'     => '&gt;',
+                '&'     => '&amp;',
+                default => $char,
+            };
+
+            $size = mb_strlen($piece);
+
+            if ($length + $size > $max) {
+                break;
+            }
+
+            $out    .= $piece;
+            $length += $size;
+        }
+
+        return $out;
+    }
+
+    /**
      * Approve or reject one approval with the service (technician) key.
      *
      * PUT /api/v3/{module}/{id}/approval_levels/{level_id}/approvals/{approval_id}/approve|reject
@@ -408,7 +440,7 @@ final class SdpClient
         }
 
         $base     = self::modulePath($module, $entityId) . '/approval_levels/' . self::id($levelId) . '/approvals/' . self::id($approvalId) . '/';
-        $approval = $comment !== '' ? ['comments' => $comment] : [];
+        $approval = $comment !== '' ? ['comments' => self::encodeComment($comment, 250)] : [];
         $attempts = array_map(
             static fn (string $segment): array => [$base . $segment, ['approval' => (object) $approval], []],
             ApprovalModule::decisionSegments($module, $decision)

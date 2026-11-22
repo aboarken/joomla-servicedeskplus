@@ -303,7 +303,8 @@ final class ApprovalService
             $level  = \is_array($item['approval_level'] ?? null) ? $item['approval_level'] : [];
             $parent = $module !== null && \is_array($level[ApprovalModule::entityKey($module)] ?? null) ? $level[ApprovalModule::entityKey($module)] : null;
 
-            if ($module === null || $parent === null || !$this->isPendingStatus($item) || self::isClosed($parent)) {
+            // Only the modules enabled under "Show approvals for".
+            if ($module === null || !\in_array($module, $this->modules, true) || $parent === null || !$this->isPendingStatus($item) || self::isClosed($parent)) {
                 continue;
             }
 
@@ -1137,6 +1138,12 @@ final class ApprovalService
      */
     private function locateOwn(Identity $identity, string $requestId, string $levelId, string $approvalId, string $module = ApprovalModule::REQUEST): array
     {
+        // A module switched off under "Show approvals for" can't be opened, downloaded from or
+        // decided here either, not only hidden from the list.
+        if (!\in_array($module, $this->modules, true)) {
+            throw new ApprovalNotFound();
+        }
+
         try {
             $requestId  = SdpClient::id($requestId);
             $levelId    = SdpClient::id($levelId);

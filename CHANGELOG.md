@@ -3,10 +3,22 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] - Repository security
+## [1.31.6] - 2026-11-22
+
+### Security
+- **The API technician can't be linked to a portal user.** The account set under *Integration Settings → Approvals* decides approvals on approvers' behalf and may hold approval entries of its own. Matching by e-mail now skips it, *User Mappings* refuses it, and an existing link to it is suspended.
+- **"Show approvals for" is enforced.** A record type that is switched off can no longer be opened, downloaded from or decided by typing its address; before, it was only hidden from the list.
+- **Approval comments are sent as text.** `<`, `>` and `&` in a comment or an approver's name are written as entities, so they can't become markup where ServiceDesk Plus shows the comment. The portal shows them as typed.
+- **Size limit on ServiceDesk Plus answers:** 32 MB (just above the 30 MB attachment limit). A bigger or endless answer is cut off instead of filling PHP's memory.
+- **Attachment previews:** a previewed PDF may not submit forms or change its base address, and no file is shared with other sites (`Cross-Origin-Resource-Policy`, `Cross-Origin-Opener-Policy`).
+- An internal helper of the approval controller could be called from a URL (it only gave an error page). It moved out of the controller.
 
 ### Changed
-- **Release workflow:** `actions/checkout` and `actions/upload-artifact` are pinned to exact commits (v7.0.1, v7.0.2) instead of the moving `@v4` tags, because the release job may write releases.
+- **Release workflow:**
+  - The build only has read access, so a pull request's build scripts can't change releases. A separate *publish* job, which runs no build script, attaches the files.
+  - Manual runs publish only from `main`, and an existing release is replaced only when *Replace the files of an existing release* is ticked.
+  - The manifest version must look like 1.2.3 and is passed to scripts as a variable.
+  - `actions/checkout` and `actions/upload-artifact` are pinned to exact commits (v7.0.1, v7.0.2) instead of `@v4`.
 - **Dependabot** (`.github/dependabot.yml`): a weekly pull request when a pinned action has a new version.
 - **CODEOWNERS** (`.github/CODEOWNERS`): the owner reviews every change, in particular the workflow, the build scripts, the update server files, the manifest and the install script.
 - README: how to report a security problem and how the release is protected.

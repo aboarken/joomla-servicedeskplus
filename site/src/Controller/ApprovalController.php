@@ -21,6 +21,7 @@ use SdpPortal\Component\ServiceDeskPlus\Administrator\Approvals\AutoDecided;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Approvals\ApprovalModule;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Approvals\ApprovalNotFound;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Approvals\ApprovalService;
+use SdpPortal\Component\ServiceDeskPlus\Administrator\Approvals\AttachmentPreview;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Approvals\InvalidDecision;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Approvals\NotRecordable;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Security\RateLimitExceeded;
@@ -124,32 +125,6 @@ final class ApprovalController extends BaseController
         $this->sendFile($file['name'], $file['content'], $this->input->getBool('inline', false));
     }
 
-    /**
-     * Types that may be shown in the browser (the attachment popup) instead of downloaded: images
-     * and PDF only, and only when the content really is of that type. They cannot run as a page
-     * of this site; everything else (HTML, SVG, office files, ...) is always a download.
-     */
-    private const INLINE_TYPES = [
-        'pdf'  => 'application/pdf',
-        'png'  => 'image/png',
-        'jpg'  => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'gif'  => 'image/gif',
-        'webp' => 'image/webp',
-    ];
-
-    /** Whether a file of this name can be offered in the popup (the content is checked when sent). */
-    public static function previewKind(string $name): string
-    {
-        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-
-        return match (true) {
-            $extension === 'pdf'                   => 'pdf',
-            isset(self::INLINE_TYPES[$extension]) => 'image',
-            default                                => '',
-        };
-    }
-
     /** The content starts as a file of the type its name says. */
     private static function contentIs(string $type, string $content): bool
     {
@@ -176,7 +151,7 @@ final class ApprovalController extends BaseController
         }
 
         // Shown in the browser only when asked for, the type allows it and the content matches it.
-        $inlineType = $inline ? (self::INLINE_TYPES[$extension] ?? null) : null;
+        $inlineType = $inline ? (AttachmentPreview::INLINE_TYPES[$extension] ?? null) : null;
         $inline     = $inlineType !== null && self::contentIs($inlineType, $content);
 
         $this->app->clearHeaders();
@@ -184,15 +159,19 @@ final class ApprovalController extends BaseController
         $this->app->setHeader('Content-Disposition', ($inline ? 'inline' : 'attachment') . '; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($name), true);
         $this->app->setHeader('Content-Length', (string) \strlen($content), true);
         $this->app->setHeader('X-Content-Type-Options', 'nosniff', true);
-        // Nothing in the file may load or run anything; a PDF is left to the browser's own viewer
-        // (which a sandbox would block), framed by this site only.
+        // Nothing in the file may load or run anything. A PDF is left to the browser's own viewer,
+        // which a CSP sandbox would block in Chrome and Firefox; those viewers already keep a
+        // PDF's own scripts away from this site. It still may not submit forms, change the base
+        // address, open this site's pages as its opener or be embedded by another site.
         $this->app->setHeader(
             'Content-Security-Policy',
             $inline && $inlineType === 'application/pdf'
-                ? "default-src 'none'; object-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'self'"
+                ? "default-src 'none'; object-src 'self'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'"
                 : "default-src 'none'; sandbox" . ($inline ? "; frame-ancestors 'self'" : ''),
             true
         );
+        $this->app->setHeader('Cross-Origin-Resource-Policy', 'same-origin', true);
+        $this->app->setHeader('Cross-Origin-Opener-Policy', 'same-origin', true);
         $this->app->setHeader('Cache-Control', 'private, no-store', true);
         $this->app->setHeader('X-Robots-Tag', 'noindex, nofollow', true);
         $this->app->sendHeaders();
