@@ -15,44 +15,42 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Controller\EndpointsController;
+use SdpPortal\Component\ServiceDeskPlus\Administrator\Discovery\Diagnostics;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Discovery\EndpointCatalog;
 
 /**
- * Find Endpoints. Shows the known endpoints with the last availability check, the last endpoint
- * check and the last Diagnostics report, all kept in the administrator's session only.
+ * Find Endpoints. Shows the last run (warnings, Server and API key cards, the endpoints the portal
+ * uses, the requester check, the report, and under "Advanced" the other known endpoints) and the
+ * last endpoint check, all kept in the administrator's session only.
  */
 final class HtmlView extends BaseHtmlView
 {
-    /** @var array{results: array<string, array{ok: bool, kind: string, http: int, total: ?int, key: string}>, at: int}|null */
-    public ?array $catalog = null;
+    /** @var array<string, mixed>|null */
+    public ?array $run = null;
 
     /** @var array<string, mixed>|null */
     public ?array $check = null;
 
-    /** @var array{report: string, email: string}|null */
-    public ?array $diagnostics = null;
-
-    public string $filter = '';
-
-    /** Path chosen with "Select" in the endpoint list (pre-fills step 2). */
+    /** Path chosen with "Select" under Advanced (pre-fills Check an Endpoint). */
     public string $selected = '';
 
     public function display($tpl = null): void
     {
         $app = Factory::getApplication();
 
-        $catalog           = $app->getUserState(EndpointsController::STATE_CATALOG);
-        $check             = $app->getUserState(EndpointsController::STATE_CHECK);
-        $diag              = $app->getUserState(EndpointsController::STATE_DIAG);
-        $this->catalog     = \is_array($catalog) ? $catalog : null;
-        $this->check       = \is_array($check) ? $check : null;
-        $this->diagnostics = \is_array($diag) ? $diag : null;
-        $this->filter      = mb_substr(trim($app->getInput()->getString('filter', '')), 0, 60);
-        $this->selected    = mb_substr(trim($app->getInput()->getString('use', '')), 0, 300);
+        $run            = $app->getUserState(EndpointsController::STATE_RUN);
+        $check          = $app->getUserState(EndpointsController::STATE_CHECK);
+        $this->run      = \is_array($run) && isset($run['result']) ? $run : null;
+        $this->check    = \is_array($check) ? $check : null;
+        $this->selected = mb_substr(trim($app->getInput()->getString('use', '')), 0, 300);
 
         ToolbarHelper::title(Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_TITLE'), 'search');
 
         $toolbar = $this->getDocument()->getToolbar();
+        $toolbar->standardButton('run', 'COM_SERVICEDESKPLUS_ENDPOINTS_BUTTON')
+            ->task('endpoints.run')
+            ->icon('icon-search')
+            ->listCheck(false);
         $toolbar->linkButton('settings', 'COM_SERVICEDESKPLUS_SUBMENU_SETTINGS')
             ->url('index.php?option=com_servicedeskplus&view=integrationsettings')
             ->icon('icon-cog');
@@ -70,27 +68,38 @@ final class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Known endpoints, filtered by text; the portal's own first.
+     * Known endpoints not used by the portal, with the last run's result when there is one.
      *
-     * @return list<array{path: string, summary: string, section: string, doc: string, portal: string}>
+     * @return list<array<string, mixed>>
      */
-    public function endpoints(): array
+    public function others(): array
     {
-        $needle = mb_strtolower($this->filter);
+        $results = [];
 
-        return array_values(array_filter(
-            EndpointCatalog::all(),
-            static fn (array $e): bool => $needle === '' || str_contains(mb_strtolower($e['path'] . ' ' . $e['section'] . ' ' . $e['summary'] . ' ' . $e['portal']), $needle)
-        ));
+        foreach ($this->run['result']['others'] ?? [] as $row) {
+            $results[$row['path']] = $row;
+        }
+
+        $out = [];
+
+        foreach (EndpointCatalog::all() as $ep) {
+            if ($ep['portal'] === '') {
+                $out[] = $results[$ep['path']] ?? $ep + ['status' => null];
+            }
+        }
+
+        return $out;
     }
 
-    /**
-     * @return array{ok: bool, kind: string, http: int, total: ?int, key: string}|null
-     */
-    public function resultFor(string $path): ?array
+    /** Bootstrap badge class for a result status. */
+    public static function badge(?string $status): string
     {
-        $result = $this->catalog['results'][$path] ?? null;
-
-        return \is_array($result) ? $result : null;
+        return match ($status) {
+            Diagnostics::OK      => 'bg-success',
+            Diagnostics::DENIED  => 'bg-danger',
+            Diagnostics::MISSING => 'bg-secondary',
+            Diagnostics::ERROR   => 'bg-warning text-dark',
+            default              => 'bg-light text-dark border',
+        };
     }
 }

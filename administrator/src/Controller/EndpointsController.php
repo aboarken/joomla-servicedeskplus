@@ -26,8 +26,8 @@ use SdpPortal\Component\ServiceDeskPlus\Administrator\Discovery\FieldInspector;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Extension\ServiceDeskPlusComponent;
 
 /**
- * Find Endpoints: check which known v3 endpoints answer, check one endpoint (field paths and
- * kinds only, plus status texts), and run Diagnostics. Every task needs POST, a valid CSRF token
+ * Find Endpoints: one run of every check (run), and checking one endpoint (field paths and kinds
+ * only, plus status texts). Every task needs POST, a valid CSRF token
  * and core.admin; only GET requests are sent to ServiceDesk Plus. Results are kept in the
  * administrator's session only.
  */
@@ -43,65 +43,15 @@ final class EndpointsController extends BaseController
     {
         throw new RouteNotFoundException(Text::_('JERROR_PAGE_NOT_FOUND'), 404);
     }
-    public const STATE_CATALOG = 'com_servicedeskplus.endpoints.catalog';
-    public const STATE_CHECK   = 'com_servicedeskplus.endpoints.check';
-    public const STATE_DIAG    = 'com_servicedeskplus.endpoints.diagnostics';
+    public const STATE_RUN   = 'com_servicedeskplus.endpoints.run';
+    public const STATE_CHECK = 'com_servicedeskplus.endpoints.check';
 
     private const URL = 'index.php?option=com_servicedeskplus&view=endpoints';
 
-    /** Availability runs, endpoint checks and Diagnostics per administrator and hour. */
+    /** Runs and endpoint checks per administrator and hour. */
     private const PER_HOUR = 60;
 
     private const ACTION = 'settings.explore';
-
-    /**
-     * Read one row of every known endpoint: answers, total, or why not.
-     */
-    public function catalog(): void
-    {
-        $this->guard();
-
-        if (!$this->allowed()) {
-            return;
-        }
-
-        try {
-            $client = $this->component()->getSdpClientFactory()->createServiceClient();
-        } catch (SdpException $e) {
-            $this->app->enqueueMessage(Text::_($e->getLanguageKey()), 'warning');
-            $this->setRedirect(Route::_(self::URL, false));
-
-            return;
-        }
-
-        $results = [];
-        $ok      = 0;
-
-        foreach (EndpointCatalog::all() as $ep) {
-            try {
-                $probe = $client->probe($ep['path'], new ListInfo(rowCount: 1, getTotalCount: true));
-                $results[$ep['path']] = ['ok' => true, 'kind' => '', 'http' => 0, 'total' => $probe->totalCount, 'key' => $probe->key];
-                $ok++;
-            } catch (SdpException $e) {
-                $results[$ep['path']] = ['ok' => false, 'kind' => $e->getKind(), 'http' => $e->getHttpStatus(), 'total' => null, 'key' => ''];
-
-                if (\in_array($e->getKind(), [SdpException::NETWORK, SdpException::AUTH, SdpException::NOT_CONFIGURED], true)) {
-                    // Every other path would fail the same way.
-                    $this->app->setUserState(self::STATE_CATALOG, ['results' => $results, 'at' => time()]);
-                    $this->audit(AuditLogInterface::RESULT_ERROR, 'catalog ' . $e->getKind());
-                    $this->app->enqueueMessage(Text::_($e->getLanguageKey()) . $this->serverSaid($e), 'warning');
-                    $this->setRedirect(Route::_(self::URL, false));
-
-                    return;
-                }
-            }
-        }
-
-        $this->app->setUserState(self::STATE_CATALOG, ['results' => $results, 'at' => time()]);
-        $this->audit(AuditLogInterface::RESULT_OK, 'catalog ' . $ok . '/' . \count($results));
-        $this->app->enqueueMessage(Text::sprintf('COM_SERVICEDESKPLUS_ENDPOINTS_READ', $ok, \count($results)), 'success');
-        $this->setRedirect(Route::_(self::URL, false));
-    }
 
     public function check(): void
     {
@@ -177,52 +127,117 @@ final class EndpointsController extends BaseController
     }
 
     /**
-     * Diagnostics: every check in one run, as a text report to copy (paths, results, field paths
-     * and kinds only).
+     * Find Endpoints: every check in one run (connection, the endpoints the portal reads, an
+     * optional requester, the other known endpoints). The page shows the result as cards and
+     * tables; the same result is kept as a text report to copy (paths, results, field paths and
+     * kinds only).
      */
-    public function diagnose(): void
+    public function run(): void
     {
         $this->guard();
-
-        if (!$this->allowed()) {
-            return;
-        }
 
         $email = mb_substr(trim($this->input->post->getString('email', '')), 0, 320);
 
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
             $this->app->enqueueMessage(Text::_('COM_SERVICEDESKPLUS_DIAG_ERR_EMAIL'), 'warning');
-            $this->setRedirect(Route::_(self::URL . '#sdp-diag', false));
+            $this->setRedirect(Route::_(self::URL, false));
 
+            return;
+        }
+
+        if (!$this->allowed()) {
             return;
         }
 
         $component = $this->component();
         $settings  = $component->getSettingsRepository()->load();
-        $tls       = $settings->sslPin() !== '' ? 'certificate pinned' : ($settings->verifySsl() ? 'verified' : 'NOT verified');
+        $https     = str_starts_with($settings->baseUrl(), 'https://');
+        $tls       = $settings->sslPin() !== '' ? 'pinned' : ($settings->verifySsl() ? 'verified' : 'off');
+
+        // Shown on the page (cards) and at the head of the report.
+        $server = [
+            'url'     => $settings->baseUrl(),
+            'https'   => $https,
+            'tls'     => $tls,
+            'via'     => $settings->connectVia(),
+            'timeout' => $settings->timeout(),
+            'connect' => $settings->connectTimeout(),
+        ];
+        $portal = [
+            'account'  => $settings->approvalAccountEmail() !== '',
+            'modules'  => $settings->approvalModules(),
+            'auto'     => $settings->autoApproveMatches(),
+            'cache'    => $settings->cacheMinutes(),
+        ];
+
+        $warnings = [];
+
+        if ($settings->baseUrl() !== '' && !$https) {
+            $warnings[] = 'HTTP';
+        }
+
+        if ($https && $tls === 'off') {
+            $warnings[] = 'TLS_OFF';
+        }
+
+        if (!$portal['account'] && $portal['modules'] !== []) {
+            $warnings[] = 'NO_ACCOUNT';
+        }
+
+        if ($portal['auto']) {
+            $warnings[] = 'AUTO_MATCH';
+        }
+
+        $context = [
+            'Component version'           => $this->version(),
+            'Joomla / PHP'                => JVERSION . ' / ' . PHP_VERSION,
+            'Address uses HTTPS'          => $https ? 'yes' : 'no',
+            'Certificate'                 => ['pinned' => 'certificate pinned', 'verified' => 'verified', 'off' => 'NOT verified'][$tls],
+            'Connect via set'             => $server['via'] !== '' ? 'yes' : 'no',
+            'Timeout / connect (s)'       => $server['timeout'] . ' / ' . $server['connect'],
+            'Cache (minutes)'             => (string) $portal['cache'],
+            'Approval modules'            => implode(', ', $portal['modules']) ?: '(none)',
+            'API technician e-mail set'   => $portal['account'] ? 'yes' : 'no',
+            'New users matched by e-mail' => $portal['auto'] ? 'approved automatically' : 'wait for an administrator',
+        ];
+        $warningTexts = array_map(static fn (string $w): string => Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_WARN_' . $w), $warnings);
 
         try {
             $client = $component->getSdpClientFactory()->createServiceClient();
-            $report = Diagnostics::run($client, $email !== '' ? $email : null, [
-                'Component version'       => $this->version(),
-                'Joomla / PHP'            => JVERSION . ' / ' . PHP_VERSION,
-                'Address uses HTTPS'      => str_starts_with($settings->baseUrl(), 'https://') ? 'yes' : 'no',
-                'Certificate'             => $tls,
-                'Connect via set'         => $settings->connectVia() !== '' ? 'yes' : 'no',
-                'Timeout / connect (s)'   => $settings->timeout() . ' / ' . $settings->connectTimeout(),
-                'Cache (minutes)'         => (string) $settings->cacheMinutes(),
-                'Approval modules'        => implode(', ', $settings->approvalModules()) ?: '(none)',
-                'API technician e-mail set' => $settings->approvalAccountEmail() !== '' ? 'yes' : 'no',
-                'New users matched by e-mail' => $settings->autoApproveMatches() ? 'approved automatically' : 'wait for an administrator',
-            ]);
+            $result = Diagnostics::collect($client, $email !== '' ? $email : null);
         } catch (SdpException $e) {
-            $report = 'ServiceDesk Plus portal diagnostics' . "\n" . 'FAILED before the first request: ' . Diagnostics::error($e);
+            $result = [
+                'connection' => ['ok' => false, 'ms' => 0, 'total' => null, 'kind' => $e->getKind(), 'error' => Diagnostics::error($e)],
+                'timing'     => [],
+                'portal'     => [],
+                'requester'  => null,
+                'others'     => [],
+                'stopped'    => true,
+            ];
         }
 
-        $this->app->setUserState(self::STATE_DIAG, ['report' => $report, 'email' => $email]);
-        $this->audit(AuditLogInterface::RESULT_OK, 'diagnostics');
-        $this->app->enqueueMessage(Text::_('COM_SERVICEDESKPLUS_DIAG_DONE'), 'success');
-        $this->setRedirect(Route::_(self::URL . '#sdp-diag', false));
+        $this->app->setUserState(self::STATE_RUN, [
+            'at'       => time(),
+            'email'    => $email,
+            'server'   => $server,
+            'portal'   => $portal,
+            'warnings' => $warnings,
+            'result'   => $result,
+            'report'   => Diagnostics::report($result, $email !== '' ? $email : null, $context, $warningTexts),
+        ]);
+
+        $failed = \count(array_filter($result['portal'], static fn (array $r): bool => $r['status'] !== Diagnostics::OK));
+        $this->audit($result['connection']['ok'] ? AuditLogInterface::RESULT_OK : AuditLogInterface::RESULT_ERROR, 'run ' . ($result['connection']['ok'] ? 'portal failed ' . $failed : $result['connection']['kind']));
+
+        if (!$result['connection']['ok']) {
+            $this->app->enqueueMessage(Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_RUN_FAILED'), 'error');
+        } elseif ($failed > 0) {
+            $this->app->enqueueMessage(Text::plural('COM_SERVICEDESKPLUS_ENDPOINTS_RUN_N_FAILED', $failed), 'warning');
+        } else {
+            $this->app->enqueueMessage(Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_RUN_DONE'), 'success');
+        }
+
+        $this->setRedirect(Route::_(self::URL, false));
     }
 
     private function version(): string
