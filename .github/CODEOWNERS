@@ -1,0 +1,15 @@
+# Who reviews changes. GitHub asks the owner for a review on every pull request that touches these
+# files. To make that review required, turn on "Require review from Code Owners" in the main
+# branch ruleset (only useful with a second maintainer: GitHub does not let an author approve
+# their own pull request).
+
+# Everything
+*                        @aboarken
+
+# What builds and publishes the package every site installs: the release workflow, the build
+# scripts, the update server files and the install script.
+/.github/                @aboarken
+/build/                  @aboarken
+/dist/                   @aboarken
+/servicedeskplus.xml     @aboarken
+/script.php              @aboarken
