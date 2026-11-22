@@ -58,6 +58,11 @@ return new class () implements ServiceProviderInterface {
                     'src/Api/ApproverKey.php',
                 ];
 
+                private const OBSOLETE_MEDIA = [
+                    // 1.32.2: Copy report replaced by Download report
+                    'js/admin.js',
+                ];
+
                 /** Settings rows of removed options (loan rule settings, removed in 1.2.0). */
                 private const OBSOLETE_SETTINGS = [
                     'asset_user_field',
@@ -134,7 +139,8 @@ return new class () implements ServiceProviderInterface {
                     }
 
                     $removed = $this->removeObsoleteFiles(JPATH_SITE . '/components/com_servicedeskplus', self::OBSOLETE_SITE)
-                        + $this->removeObsoleteFiles(JPATH_ADMINISTRATOR . '/components/com_servicedeskplus', self::OBSOLETE_ADMIN);
+                        + $this->removeObsoleteFiles(JPATH_ADMINISTRATOR . '/components/com_servicedeskplus', self::OBSOLETE_ADMIN)
+                        + $this->removeObsoleteFiles(JPATH_ROOT . '/media/com_servicedeskplus', self::OBSOLETE_MEDIA);
 
                     $db = Factory::getContainer()->get(DatabaseInterface::class);
 

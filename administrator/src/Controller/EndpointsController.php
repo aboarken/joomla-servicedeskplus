@@ -26,8 +26,8 @@ use SdpPortal\Component\ServiceDeskPlus\Administrator\Discovery\FieldInspector;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Extension\ServiceDeskPlusComponent;
 
 /**
- * Find Endpoints: one run of every check (run), and checking one endpoint (field paths and kinds
- * only, plus status texts). Every task needs POST, a valid CSRF token
+ * Find Endpoints: one run of every check (run), the run's report as a file (download), and
+ * checking one endpoint (field paths and kinds only, plus status texts). Every task needs POST, a valid CSRF token
  * and core.admin; only GET requests are sent to ServiceDesk Plus. Results are kept in the
  * administrator's session only.
  */
@@ -129,7 +129,7 @@ final class EndpointsController extends BaseController
     /**
      * Find Endpoints: every check in one run (connection, the endpoints the portal reads, an
      * optional requester, the other known endpoints). The page shows the result as cards and
-     * tables; the same result is kept as a text report to copy (paths, results, field paths and
+     * tables; the same result is kept as a text report to download (paths, results, field paths and
      * kinds only).
      */
     public function run(): void
@@ -238,6 +238,43 @@ final class EndpointsController extends BaseController
         }
 
         $this->setRedirect(Route::_(self::URL, false));
+    }
+
+    /**
+     * The last run's report as a text file. Nothing is sent to ServiceDesk Plus.
+     */
+    public function download(): void
+    {
+        $this->guard();
+
+        $run    = $this->app->getUserState(self::STATE_RUN);
+        $report = \is_array($run) && \is_string($run['report'] ?? null) ? $run['report'] : '';
+
+        if ($report === '') {
+            $this->app->enqueueMessage(Text::_('COM_SERVICEDESKPLUS_DIAG_NONE'), 'warning');
+            $this->setRedirect(Route::_(self::URL, false));
+
+            return;
+        }
+
+        $name = 'servicedeskplus-diagnostics-' . gmdate('Y-m-d-Hi', (int) ($run['at'] ?? time())) . '.txt';
+        $body = str_replace("\n", "\r\n", $report) . "\r\n";
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        $this->app->clearHeaders();
+        $this->app->setHeader('Content-Type', 'text/plain; charset=utf-8', true);
+        $this->app->setHeader('Content-Disposition', 'attachment; filename="' . $name . '"', true);
+        $this->app->setHeader('Content-Length', (string) \strlen($body), true);
+        $this->app->setHeader('X-Content-Type-Options', 'nosniff', true);
+        $this->app->setHeader('Cache-Control', 'private, no-store', true);
+        $this->app->sendHeaders();
+
+        echo $body;
+
+        $this->app->close();
     }
 
     private function version(): string

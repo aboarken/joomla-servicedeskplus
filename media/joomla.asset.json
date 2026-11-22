@@ -49,14 +49,6 @@
       "name": "com_servicedeskplus.admin",
       "type": "style",
       "uri": "com_servicedeskplus/admin.css"
-    },
-    {
-      "name": "com_servicedeskplus.admin",
-      "type": "script",
-      "uri": "com_servicedeskplus/admin.js",
-      "attributes": {
-        "defer": true
-      }
     }
   ]
 }
