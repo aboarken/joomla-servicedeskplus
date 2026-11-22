@@ -3,6 +3,13 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.32.2] - 2026-11-22
+
+### Changed
+- **Find Endpoints:**
+  - Less space between the *Server* and *API key* cards; it now matches the space between the cards below them.
+  - **Download report** replaces *Copy report*: the Diagnostics report is saved as a text file (`servicedeskplus-diagnostics-<date>-<time>.txt`). The script that copied it is removed.
+
 ## [1.32.1] - 2026-11-22
 
 ### Changed

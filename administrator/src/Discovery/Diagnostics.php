@@ -18,7 +18,7 @@ use SdpPortal\Component\ServiceDeskPlus\Administrator\Api\SdpException;
  * Find Endpoints: one run checks the connection, reads a few rows of every endpoint the portal
  * uses, optionally looks up one requester by e-mail, and checks which other known endpoints
  * answer. collect() gives the result for the page (cards and tables); report() writes it as a
- * plain-text report the administrator can copy and send to support.
+ * plain-text report the administrator can download and send to support.
  *
  * The result holds only paths, results, times, row counts, field paths, kinds of values and
  * status-like texts (see FieldInspector). Never keys, names, e-mails, ids, subjects or other
