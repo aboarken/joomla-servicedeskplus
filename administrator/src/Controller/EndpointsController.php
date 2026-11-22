@@ -184,10 +184,6 @@ final class EndpointsController extends BaseController
             $warnings[] = 'NO_ACCOUNT';
         }
 
-        if ($portal['auto']) {
-            $warnings[] = 'AUTO_MATCH';
-        }
-
         $context = [
             'Component version'           => $this->version(),
             'Joomla / PHP'                => JVERSION . ' / ' . PHP_VERSION,

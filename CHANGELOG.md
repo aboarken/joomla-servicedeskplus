@@ -3,6 +3,11 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.32.3] - 2026-11-22
+
+### Changed
+- **Find Endpoints:** the warning about new users being approved automatically is removed from the page and the report. The *API key* card still shows how new users are matched.
+
 ## [1.32.2] - 2026-11-22
 
 ### Changed
