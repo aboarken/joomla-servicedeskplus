@@ -54,7 +54,7 @@ $detail = function (array $row) use ($e): string {
         $prt  = $run['portal'];
         $conn = $res['connection'];
         ?>
-        <?php foreach ($run['warnings'] as $warning) : ?>
+        <?php foreach ($this->warnings() as $warning) : ?>
             <div class="alert alert-warning"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_WARN_' . $warning); ?></div>
         <?php endforeach; ?>
         <?php if (!$conn['ok']) : ?>

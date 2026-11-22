@@ -90,6 +90,17 @@ final class HtmlView extends BaseHtmlView
         return $out;
     }
 
+    /**
+     * The last run's warnings that this version still knows. A run kept in the session from an
+     * older version can hold a warning that no longer exists; it is not shown.
+     *
+     * @return list<string>
+     */
+    public function warnings(): array
+    {
+        return array_values(array_intersect((array) ($this->run['warnings'] ?? []), EndpointsController::WARNINGS));
+    }
+
     /** Bootstrap badge class for a result status. */
     public static function badge(?string $status): string
     {
