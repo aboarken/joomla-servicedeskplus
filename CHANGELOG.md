@@ -3,6 +3,11 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.32.4] - 2026-11-22
+
+### Changed
+- **Find Endpoints:** the *Diagnostics report* (with *Download report*) is now the last section, after *Advanced*.
+
 ## [1.32.3] - 2026-11-22
 
 ### Changed

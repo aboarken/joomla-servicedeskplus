@@ -164,18 +164,6 @@ $detail = function (array $row) use ($e): string {
             <div class="alert alert-warning"><?php echo Text::_('COM_SERVICEDESKPLUS_ENDPOINTS_STOPPED'); ?></div>
         <?php endif; ?>
 
-        <section class="card mb-3" id="sdp-diag">
-            <div class="card-body">
-                <h2 class="h5"><?php echo Text::_('COM_SERVICEDESKPLUS_DIAG_REPORT'); ?></h2>
-                <textarea class="form-control font-monospace small" id="sdp-diag-report" rows="12" readonly aria-label="<?php echo $e(Text::_('COM_SERVICEDESKPLUS_DIAG_REPORT')); ?>"><?php echo $e((string) $run['report']); ?></textarea>
-                <form method="post" action="<?php echo $action; ?>" class="mt-2">
-                    <input type="hidden" name="task" value="endpoints.download">
-                    <?php echo $token; ?>
-                    <button class="btn btn-secondary" type="submit"><span class="icon-download" aria-hidden="true"></span> <?php echo Text::_('COM_SERVICEDESKPLUS_DIAG_DOWNLOAD'); ?></button>
-                </form>
-                <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_SERVICEDESKPLUS_DIAG_PRIVACY'); ?></p>
-            </div>
-        </section>
     <?php endif; ?>
 
     <section class="card mb-3" id="sdp-advanced">
@@ -274,4 +262,19 @@ $detail = function (array $row) use ($e): string {
     <?php endif; ?>
         </div>
     </section>
+
+    <?php if ($res !== null) : ?>
+        <section class="card mb-3" id="sdp-diag">
+            <div class="card-body">
+                <h2 class="h5"><?php echo Text::_('COM_SERVICEDESKPLUS_DIAG_REPORT'); ?></h2>
+                <textarea class="form-control font-monospace small" id="sdp-diag-report" rows="12" readonly aria-label="<?php echo $e(Text::_('COM_SERVICEDESKPLUS_DIAG_REPORT')); ?>"><?php echo $e((string) $run['report']); ?></textarea>
+                <form method="post" action="<?php echo $action; ?>" class="mt-2">
+                    <input type="hidden" name="task" value="endpoints.download">
+                    <?php echo $token; ?>
+                    <button class="btn btn-secondary" type="submit"><span class="icon-download" aria-hidden="true"></span> <?php echo Text::_('COM_SERVICEDESKPLUS_DIAG_DOWNLOAD'); ?></button>
+                </form>
+                <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_SERVICEDESKPLUS_DIAG_PRIVACY'); ?></p>
+            </div>
+        </section>
+    <?php endif; ?>
 </div>
