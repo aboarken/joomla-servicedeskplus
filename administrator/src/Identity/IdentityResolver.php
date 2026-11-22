@@ -38,6 +38,8 @@ use SdpPortal\Component\ServiceDeskPlus\Administrator\Cache\UserCacheInterface;
  *  - Automatic active mappings are re-verified against SDP once a day; if the SDP user is gone or
  *    its email changed, the mapping is suspended.
  *  - Unmatched/ambiguous results are retried at most every RECHECK_SECONDS.
+ *  - The API technician's e-mail (Integration Settings → Approvals) is never matched, and an
+ *    active mapping with that e-mail is suspended.
  */
 final class IdentityResolver
 {
@@ -61,7 +63,8 @@ final class IdentityResolver
         private readonly LoggerInterface $logger,
         ?\Closure $clock = null,
         private readonly ?UserCacheInterface $cache = null,
-        private readonly bool $autoApprove = true
+        private readonly bool $autoApprove = true,
+        private readonly string $apiAccountEmail = ''
     ) {
         $this->clock = $clock ?? static fn (): \DateTimeImmutable => new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     }
@@ -117,6 +120,13 @@ final class IdentityResolver
                     return Identity::notMatched($userId, UserMapping::STATUS_SUSPENDED);
                 }
 
+                // Linked by e-mail to the API technician before this check existed.
+                if ($this->isApiAccountEmail($email)) {
+                    $this->suspend($mapping, $now, 'api_account');
+
+                    return Identity::notMatched($userId, UserMapping::STATUS_SUSPENDED);
+                }
+
                 if ($mapping->source === UserMapping::SOURCE_AUTO && $this->age($mapping, $now) >= self::REVERIFY_SECONDS) {
                     return $this->reverify($mapping, $email, $now);
                 }
@@ -147,6 +157,12 @@ final class IdentityResolver
     {
         if (!EmailNormalizer::isUsable($email)) {
             return $this->storeNotMatched($userId, $email, UserMapping::STATUS_UNMATCHED, $now, 'invalid_email');
+        }
+
+        // The API technician (Integration Settings → Approvals) decides on approvers' behalf and
+        // may hold approval entries of its own. No portal user is ever linked to it by e-mail.
+        if ($this->isApiAccountEmail($email)) {
+            return $this->storeNotMatched($userId, $email, UserMapping::STATUS_UNMATCHED, $now, 'api_account');
         }
 
         $candidates = $this->client()->findUsersByEmail($email);
@@ -252,6 +268,13 @@ final class IdentityResolver
         $this->audit->record($userId, 'identity.' . $status, AuditLogInterface::RESULT_DENIED, null, null, mb_substr($reason, 0, 255));
 
         return Identity::notMatched($userId, $status);
+    }
+
+    private function isApiAccountEmail(string $email): bool
+    {
+        $account = EmailNormalizer::normalize($this->apiAccountEmail);
+
+        return $account !== '' && $account === $email;
     }
 
     private function age(UserMapping $mapping, \DateTimeImmutable $now): int

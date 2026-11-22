@@ -32,7 +32,8 @@ final class MappingManager
         private readonly \Closure $clientFactory,
         private readonly AuditLogInterface $audit,
         ?\Closure $clock = null,
-        private readonly ?UserCacheInterface $cache = null
+        private readonly ?UserCacheInterface $cache = null,
+        private readonly string $apiAccountEmail = ''
     ) {
         $this->clock = $clock ?? static fn (): \DateTimeImmutable => new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     }
@@ -58,6 +59,17 @@ final class MappingManager
         }
 
         $sdpUser = $this->fetchSdpUser($sdpUserId);
+
+        // The API technician decides on approvers' behalf and may hold approval entries of its
+        // own: a portal user linked to it would see and decide those.
+        $account = EmailNormalizer::normalize($this->apiAccountEmail);
+
+        if ($account !== '' && EmailNormalizer::normalize($sdpUser['email_id'] ?? '') === $account) {
+            $this->audit->record($joomlaUserId, 'mapping.assign', AuditLogInterface::RESULT_DENIED, null, null, 'api_account sdp_user:' . $sdpUserId, $actorId);
+
+            throw new MappingException('COM_SERVICEDESKPLUS_MAPPING_ERR_API_ACCOUNT');
+        }
+
         $owner   = $this->repository->findBySdpUserId($sdpUserId);
 
         if ($owner !== null && $owner->joomlaUserId !== $joomlaUserId) {

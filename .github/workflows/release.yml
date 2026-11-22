@@ -5,9 +5,14 @@
 #
 # - Pull requests and pushes to main: build and check the package, keep it as a workflow artifact.
 # - Release published in the GitHub UI (tag v<version>): build from that tag, check that the tag
-#   matches the manifest version, and attach com_servicedeskplus.zip and updates.xml to the release.
-# - Run manually (Actions > Release package > Run workflow): create release v<manifest version>
-#   from main with docs/release-notes/<version>.md as notes, and attach both files.
+#   matches the manifest version, and attach the three files to the release.
+# - Run manually (Actions > Release package > Run workflow) on main: create release
+#   v<manifest version> with docs/release-notes/<version>.md as notes, and attach the three files.
+#   An existing release is only replaced when "Replace the files of an existing release" is ticked.
+#
+# The build ("package") only ever has read access, so a pull request's build scripts can't touch
+# releases. The "publish" job, which can write releases, runs only for a published release or a
+# manual run on main, and uploads the files the build kept; it runs no build script itself.
 name: Release package
 
 on:
@@ -17,6 +22,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      replace:
+        description: Replace the files of an existing release with the same version
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,18 +35,24 @@ jobs:
   package:
     runs-on: ubuntu-24.04
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, pinned to the commit: this job may write releases
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, pinned to the commit
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
+          persist-credentials: false
 
       - name: Read version from manifest
         id: version
         run: |
           version="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' servicedeskplus.xml | head -n1)"
-          test -n "$version"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::The manifest version must look like 1.2.3."
+            exit 1
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Manifest version: $version"
 
@@ -57,22 +73,30 @@ jobs:
           find administrator site script.php -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
 
       - name: Build package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           build/build-package.sh
-          cp "dist/com_servicedeskplus-${{ steps.version.outputs.version }}.zip" dist/com_servicedeskplus.zip
+          cp "dist/com_servicedeskplus-$VERSION.zip" dist/com_servicedeskplus.zip
 
       - name: Check package structure
-        run: python3 -I build/verify-package.py dist/com_servicedeskplus.zip "${{ steps.version.outputs.version }}"
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: python3 -I build/verify-package.py dist/com_servicedeskplus.zip "$VERSION"
 
       - name: Write Joomla update file
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          python3 -I build/make-update-xml.py dist/com_servicedeskplus.zip "${{ steps.version.outputs.version }}" dist/updates.xml
+          python3 -I build/make-update-xml.py dist/com_servicedeskplus.zip "$VERSION" dist/updates.xml
           python3 -I -c "import xml.etree.ElementTree as E; E.parse('dist/updates.xml')"
 
       - name: Write Joomla changelog file
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           python3 -I build/make-changelog-xml.py CHANGELOG.md dist/changelog.xml
-          python3 -I -c "import xml.etree.ElementTree as E, sys; v = E.parse('dist/changelog.xml').getroot()[0].findtext('version'); sys.exit(0 if v == '${{ steps.version.outputs.version }}' else 'changelog.xml starts with ' + str(v) + ', expected the manifest version')"
+          python3 -I -c "import os, sys, xml.etree.ElementTree as E; v = E.parse('dist/changelog.xml').getroot()[0].findtext('version'); sys.exit(0 if v == os.environ['VERSION'] else 'changelog.xml starts with ' + str(v) + ', expected the manifest version')"
 
       - name: Keep package as workflow artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -83,6 +107,28 @@ jobs:
             dist/updates.xml
             dist/changelog.xml
           if-no-files-found: error
+
+  publish:
+    needs: package
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out (release notes and changelog only; nothing is built here)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, pinned to the commit: this job writes releases
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+          persist-credentials: false
+
+      - name: Fetch the package the build kept
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "com_servicedeskplus-$VERSION" --dir dist
+          ls -l dist/com_servicedeskplus.zip dist/updates.xml dist/changelog.xml
 
       - name: Attach package to the published release
         if: github.event_name == 'release'
@@ -95,17 +141,22 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.package.outputs.version }}
+          REPLACE: ${{ inputs.replace }}
         run: |
           tag="v$VERSION"
           notes="docs/release-notes/$VERSION.md"
           if [ ! -f "$notes" ]; then
             # Fall back to this version's section of the changelog.
-            awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md > /tmp/notes.md
-            notes=/tmp/notes.md
+            awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+            notes="$RUNNER_TEMP/notes.md"
           fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "Release $tag exists; replacing its package and update file."
+            if [ "$REPLACE" != "true" ]; then
+              echo "::error::Release $tag already exists. Raise the version, or run again with \"Replace the files of an existing release\" ticked."
+              exit 1
+            fi
+            echo "Release $tag exists; replacing its files as asked."
             gh release upload "$tag" dist/com_servicedeskplus.zip dist/updates.xml dist/changelog.xml --clobber --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$tag" dist/com_servicedeskplus.zip dist/updates.xml dist/changelog.xml \

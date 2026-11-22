@@ -115,7 +115,8 @@ return new class () implements ServiceProviderInterface {
                 $c->get(AuditLogInterface::class),
                 $c->get(JoomlaLogger::class),
                 cache: $c->get(UserCacheInterface::class),
-                autoApprove: $c->get(SettingsRepository::class)->load()->autoApproveMatches()
+                autoApprove: $c->get(SettingsRepository::class)->load()->autoApproveMatches(),
+                apiAccountEmail: $c->get(SettingsRepository::class)->load()->approvalAccountEmail()
             )
         );
 
@@ -125,7 +126,8 @@ return new class () implements ServiceProviderInterface {
                 $c->get(UserMapRepositoryInterface::class),
                 $serviceClient($c),
                 $c->get(AuditLogInterface::class),
-                cache: $c->get(UserCacheInterface::class)
+                cache: $c->get(UserCacheInterface::class),
+                apiAccountEmail: $c->get(SettingsRepository::class)->load()->approvalAccountEmail()
             )
         );
 

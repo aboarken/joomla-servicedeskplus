@@ -138,7 +138,7 @@ $field = static fn (string $labelKey, string $html): string => '<div><dt>' . Tex
                                     . ($item->module !== ApprovalModule::REQUEST ? '&module=' . rawurlencode($item->module) : '')
                                     . '&file=' . rawurlencode($file['id']));
                                 ?>
-                                <?php $kind = \SdpPortal\Component\ServiceDeskPlus\Site\Controller\ApprovalController::previewKind($file['name']); ?>
+                                <?php $kind = \SdpPortal\Component\ServiceDeskPlus\Administrator\Approvals\AttachmentPreview::kind($file['name']); ?>
                                 <li>
                                     <a href="<?php echo $href; ?>" download rel="nofollow"
                                         <?php if ($kind !== '') : ?>
