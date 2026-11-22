@@ -3,6 +3,11 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.32.1] - 2026-11-22
+
+### Changed
+- **Find Endpoints:** the *Advanced* section (other known endpoints and *Check an Endpoint*) is always shown instead of closed.
+
 ## [1.32.0] - 2026-11-22
 
 ### Changed
