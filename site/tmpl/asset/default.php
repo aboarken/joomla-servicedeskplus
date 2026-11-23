@@ -19,7 +19,7 @@ $field = static fn (string $labelKey, string $html): string => '<div><dt>' . Tex
 $item  = $this->item;
 ?>
 <div class="com-servicedeskplus sdp-asset" data-sdp-root="asset">
-    <a class="sdp-back" href="<?php echo Route::_('index.php?option=com_servicedeskplus&view=assets'); ?>">&larr; <?php echo Text::_('COM_SERVICEDESKPLUS_BACK_TO_ASSETS'); ?></a>
+    <a class="sdp-back" href="<?php echo Route::_('index.php?option=com_servicedeskplus&view=assets'); ?>"><span class="sdp-arrow" aria-hidden="true">&larr;</span> <?php echo Text::_('COM_SERVICEDESKPLUS_BACK_TO_ASSETS'); ?></a>
 
     <?php if ($item === null) : ?>
         <div class="sdp-alert sdp-tone-red" role="alert"><?php echo $this->escape($this->error); ?></div>

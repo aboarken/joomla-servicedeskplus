@@ -25,7 +25,7 @@ $field = static fn (string $labelKey, string $html): string => '<div><dt>' . Tex
 ?>
 <div class="com-servicedeskplus sdp-approval" data-sdp-root="approval">
     <?php echo (new FileLayout('messages', null, $layoutOptions))->render(); ?>
-    <a class="sdp-back" href="<?php echo Route::_('index.php?option=com_servicedeskplus&view=approvals'); ?>">&larr; <?php echo Text::_('COM_SERVICEDESKPLUS_BACK_TO_APPROVALS'); ?></a>
+    <a class="sdp-back" href="<?php echo Route::_('index.php?option=com_servicedeskplus&view=approvals'); ?>"><span class="sdp-arrow" aria-hidden="true">&larr;</span> <?php echo Text::_('COM_SERVICEDESKPLUS_BACK_TO_APPROVALS'); ?></a>
 
     <?php if ($item === null) : ?>
         <div class="sdp-alert sdp-tone-red" role="alert"><?php echo $this->escape($this->error); ?></div>
@@ -147,7 +147,7 @@ $field = static fn (string $labelKey, string $html): string => '<div><dt>' . Tex
                                             data-sdp-preview-open="<?php echo $this->escape(Text::_('COM_SERVICEDESKPLUS_PREVIEW_OPEN')); ?>"
                                             data-sdp-preview-download="<?php echo $this->escape(Text::_('COM_SERVICEDESKPLUS_PREVIEW_DOWNLOAD')); ?>"
                                             data-sdp-preview-close="<?php echo $this->escape(Text::_('COM_SERVICEDESKPLUS_PREVIEW_CLOSE')); ?>"
-                                        <?php endif; ?>>&#128206; <?php echo $this->escape($file['name']); ?></a>
+                                        <?php endif; ?>><span aria-hidden="true">&#128206;</span> <?php echo $this->escape($file['name']); ?></a>
                                     <?php if ($file['size'] > 0) : ?>
                                         <span class="sdp-muted">(<?php echo HTMLHelper::_('number.bytes', $file['size'], 'auto', 1); ?>)</span>
                                     <?php endif; ?>
@@ -186,12 +186,12 @@ $field = static fn (string $labelKey, string $html): string => '<div><dt>' . Tex
                         <button class="sdp-btn sdp-btn--green" type="submit" name="decision" value="approve"
                                 data-sdp-confirm="<?php echo $this->escape(Text::_('COM_SERVICEDESKPLUS_APPROVAL_CONFIRM_APPROVE')); ?>">
                             <span class="spinner-border spinner-border-sm d-none" aria-hidden="true" data-sdp-spinner></span>
-                            <span data-sdp-label>&#10003; <?php echo Text::_('COM_SERVICEDESKPLUS_APPROVE'); ?></span>
+                            <span data-sdp-label><span aria-hidden="true">&#10003;</span> <?php echo Text::_('COM_SERVICEDESKPLUS_APPROVE'); ?></span>
                         </button>
                         <button class="sdp-btn sdp-btn--red" type="submit" name="decision" value="reject"
                                 data-sdp-confirm="<?php echo $this->escape(Text::_('COM_SERVICEDESKPLUS_APPROVAL_CONFIRM_REJECT')); ?>">
                             <span class="spinner-border spinner-border-sm d-none" aria-hidden="true" data-sdp-spinner></span>
-                            <span data-sdp-label>&#10005; <?php echo Text::_('COM_SERVICEDESKPLUS_REJECT'); ?></span>
+                            <span data-sdp-label><span aria-hidden="true">&#10005;</span> <?php echo Text::_('COM_SERVICEDESKPLUS_REJECT'); ?></span>
                         </button>
                     </div>
 

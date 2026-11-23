@@ -80,26 +80,31 @@ final class RequestApprovalsReader
 
         usort($levels, static fn (array $a, array $b): int => (int) ($a['level'] ?? 0) <=> (int) ($b['level'] ?? 0));
 
+        $levels = array_filter(\array_slice($levels, 0, self::MAX_LEVELS), static fn (array $l): bool => !self::isDeleted($l));
+        $ids    = array_values(array_filter(
+            array_map(static fn (array $l): string => SdpFields::string($l, 'id'), $levels),
+            static fn (string $id): bool => (bool) preg_match('/^[1-9][0-9]{0,19}$/', $id)
+        ));
+
+        // The approvals of every level, read at once.
+        $byLevel = $client->getApprovalsOfLevels($requestId, $ids, ApprovalModule::REQUEST);
         $entries = [];
 
-        foreach (\array_slice($levels, 0, self::MAX_LEVELS) as $index => $level) {
-            if (self::isDeleted($level)) {
+        foreach ($levels as $index => $level) {
+            $levelId   = SdpFields::string($level, 'id');
+            $approvals = $byLevel[$levelId] ?? null;
+
+            if ($approvals instanceof SdpException) {
+                if (\in_array($approvals->getKind(), $fatal, true)) {
+                    throw $approvals;
+                }
+
+                $this->logger->warning(\sprintf('Approvals of request %s, level %s could not be read (%s)', $requestId, $levelId, $approvals->getKind()));
+
                 continue;
             }
 
-            $levelId = SdpFields::string($level, 'id');
-
-            try {
-                $approvals = $client->getApprovals($requestId, $levelId, ApprovalModule::REQUEST);
-            } catch (SdpException $e) {
-                if (\in_array($e->getKind(), $fatal, true)) {
-                    throw $e;
-                }
-
-                $this->logger->warning(\sprintf('Approvals of request %s, level %s could not be read (%s)', $requestId, $levelId, $e->getKind()));
-
-                continue;
-            } catch (\InvalidArgumentException) {
+            if (!\is_array($approvals)) {
                 continue;
             }
 

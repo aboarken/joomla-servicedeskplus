@@ -4,3 +4,5 @@ dist/
 .vscode/
 *.orig
 *.swp
+/vendor/
+/.phpunit.cache/

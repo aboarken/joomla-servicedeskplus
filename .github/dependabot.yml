@@ -10,3 +10,12 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+
+  # Development tools only (PHPUnit): nothing from Composer is shipped in the package.
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies

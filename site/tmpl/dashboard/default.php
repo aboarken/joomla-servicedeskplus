@@ -43,7 +43,7 @@ $row = static function (string $label, ?int $value, string $url, string $tone, b
 
 $panelHead = static fn (string $title, string $url = '', string $linkText = ''): string => '<div class="sdp-panel-head">'
     . '<h2 class="sdp-panel-title">' . $title . '</h2>'
-    . ($url !== '' ? '<a class="sdp-panel-link" href="' . $url . '">' . $linkText . ' &rarr;</a>' : '')
+    . ($url !== '' ? '<a class="sdp-panel-link" href="' . $url . '">' . $linkText . ' <span class="sdp-arrow" aria-hidden="true">&rarr;</span></a>' : '')
     . '</div>';
 
 $viewAll = Text::_('COM_SERVICEDESKPLUS_DASHBOARD_VIEW_ALL');
@@ -287,7 +287,7 @@ $tiles = [
                                         <span class="sdp-vbar-value"><?php echo $num($pr['count']); ?></span>
                                         <span class="sdp-vbar-fill sdp-cat-<?php echo $pr['tone']; ?>" style="height: <?php echo max(2, $pct($pr['count'], $prioMax)); ?>%"></span>
                                     </span>
-                                    <span class="visually-hidden">: <?php echo $num($pr['count']); ?> (<?php echo round($pct($pr['count'], $priorityTotal)); ?>%)</span>
+                                    <span class="visually-hidden"><?php echo $e($pr['label']); ?>: <?php echo $num($pr['count']); ?> (<?php echo round($pct($pr['count'], $priorityTotal)); ?>%)</span>
                                 </li>
                             <?php endforeach; ?>
                         </ul>

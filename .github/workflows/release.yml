@@ -42,7 +42,9 @@ jobs:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, pinned to the commit
         with:
-          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
+          # The exact commit of this run (not the branch tip at checkout time), so the package
+          # is built from the commit the release is tagged on.
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
           persist-credentials: false
 
       - name: Read version from manifest
@@ -71,6 +73,11 @@ jobs:
         run: |
           php -v | head -n1
           find administrator site script.php -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: Unit tests
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist
+          vendor/bin/phpunit
 
       - name: Build package
         env:

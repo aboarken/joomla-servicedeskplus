@@ -7,6 +7,7 @@ Checks: manifest at the root, type="component" method="upgrade", every file and 
 manifest names exists, SQL install/update files exist (including one for this version), the
 installer script and service provider exist, and the version matches when one is given.
 """
+import json
 import os
 import sys
 import tempfile
@@ -76,6 +77,16 @@ def main() -> int:
 
         if not os.path.isfile(os.path.join(d, 'administrator/services/provider.php')):
             errors.append('missing administrator/services/provider.php')
+
+        # The web asset file carries the version too (browsers fetch new CSS/JS after an update).
+        assets = os.path.join(d, 'media', 'joomla.asset.json')
+        if os.path.isfile(assets):
+            with open(assets, encoding='utf-8') as fh:
+                asset_version = json.load(fh).get('version', '')
+            if asset_version != version:
+                errors.append(f'media/joomla.asset.json version {asset_version} does not match {version}')
+        else:
+            errors.append('missing media/joomla.asset.json')
 
     if errors:
         print('Package check FAILED:')

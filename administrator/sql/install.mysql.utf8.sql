@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS `#__sdp_audit` (
   `created` DATETIME NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_user_created` (`user_id`, `created`),
-  KEY `idx_action_created` (`action`, `created`)
+  KEY `idx_action_created` (`action`, `created`),
+  KEY `idx_user_action_created` (`user_id`, `action`, `created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `#__sdp_cache` (

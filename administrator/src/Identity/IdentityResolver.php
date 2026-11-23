@@ -45,6 +45,8 @@ final class IdentityResolver
 {
     public const RECHECK_SECONDS  = 900;
     public const REVERIFY_SECONDS = 86400;
+    /** After a failed daily re-check, the next try comes this much later. */
+    public const RETRY_SECONDS    = 900;
 
     /** @var array<int, Identity> */
     private array $memo = [];
@@ -238,8 +240,15 @@ final class IdentityResolver
                 return Identity::notMatched($userId, UserMapping::STATUS_SUSPENDED);
             }
 
-            // SDP unavailable: keep the verified mapping; try again on a later request.
+            // SDP unavailable: keep the verified mapping and try again in RETRY_SECONDS, not on
+            // every page (each try would first wait for ServiceDesk Plus to answer or time out).
             $this->logger->warning(\sprintf('Could not re-verify mapping for Joomla user %d (%s)', $userId, $e->getKind()));
+
+            try {
+                $this->repository->save($mapping->with(['checkedAt' => $now->modify('-' . (self::REVERIFY_SECONDS - self::RETRY_SECONDS) . ' seconds')]));
+            } catch (\RuntimeException) {
+                // Not saved: it is tried again on the next page, as before.
+            }
 
             return Identity::matched($userId, (string) $mapping->sdpUserId);
         }

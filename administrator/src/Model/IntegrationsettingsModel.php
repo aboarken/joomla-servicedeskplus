@@ -177,12 +177,18 @@ final class IntegrationsettingsModel extends FormModel
             throw new ValidationFailed([Text::_('COM_SERVICEDESKPLUS_SETTINGS_ERR_KEY_REENTER')]);
         }
 
-        $newServer = $values['base_url'] !== $this->settings()->baseUrl();
+        $stored    = $this->settings();
+        $newServer = $values['base_url'] !== $stored->baseUrl();
+
+        // Approval lists depend on these: a switched-off module or another API technician must
+        // not keep showing in lists cached before the change.
+        $newApprovals = $values['approval_account_email'] !== $stored->approvalAccountEmail()
+            || $values['approval_modules'] !== implode(',', $stored->approvalModules());
 
         $this->component()->getSettingsRepository()->save($values);
 
         // Results cached from another ServiceDesk Plus server must never be shown again.
-        if ($newServer) {
+        if ($newServer || $newApprovals) {
             $this->component()->getUserCache()->clearAll();
         }
     }

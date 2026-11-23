@@ -17,7 +17,7 @@ use SdpPortal\Component\ServiceDeskPlus\Administrator\Requests\RequestService;
 $limits = AttachmentValidator::limitsForMessages();
 ?>
 <div class="com-servicedeskplus sdp-requestform" data-sdp-root="requestform">
-    <a class="sdp-back" href="<?php echo Route::_('index.php?option=com_servicedeskplus&view=requests'); ?>">&larr; <?php echo Text::_('COM_SERVICEDESKPLUS_BACK_TO_REQUESTS'); ?></a>
+    <a class="sdp-back" href="<?php echo Route::_('index.php?option=com_servicedeskplus&view=requests'); ?>"><span class="sdp-arrow" aria-hidden="true">&larr;</span> <?php echo Text::_('COM_SERVICEDESKPLUS_BACK_TO_REQUESTS'); ?></a>
 
     <?php if ($this->showPageHeading) : ?>
         <div class="sdp-head">
@@ -30,7 +30,7 @@ $limits = AttachmentValidator::limitsForMessages();
         ?>
         <div class="sdp-alert sdp-tone-green" role="status">
             <?php echo Text::sprintf('COM_SERVICEDESKPLUS_REQUEST_CREATED', $this->escape($this->createdId)); ?>
-            <a href="<?php echo $url; ?>"><?php echo Text::_('COM_SERVICEDESKPLUS_VIEW_REQUEST'); ?> &rarr;</a>
+            <a href="<?php echo $url; ?>"><?php echo Text::_('COM_SERVICEDESKPLUS_VIEW_REQUEST'); ?> <span class="sdp-arrow" aria-hidden="true">&rarr;</span></a>
         </div>
     <?php endif; ?>
 

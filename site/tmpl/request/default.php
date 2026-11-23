@@ -24,7 +24,7 @@ $text  = fn (string $v): string => $this->escape($v !== '' ? $v : Text::_('COM_S
 $field = static fn (string $labelKey, string $html): string => '<div><dt>' . Text::_($labelKey) . '</dt><dd>' . $html . '</dd></div>';
 ?>
 <div class="com-servicedeskplus sdp-request" data-sdp-root="request">
-    <a class="sdp-back" href="<?php echo Route::_('index.php?option=com_servicedeskplus&view=requests'); ?>">&larr; <?php echo Text::_('COM_SERVICEDESKPLUS_BACK_TO_REQUESTS'); ?></a>
+    <a class="sdp-back" href="<?php echo Route::_('index.php?option=com_servicedeskplus&view=requests'); ?>"><span class="sdp-arrow" aria-hidden="true">&larr;</span> <?php echo Text::_('COM_SERVICEDESKPLUS_BACK_TO_REQUESTS'); ?></a>
 
     <?php if ($item === null) : ?>
         <div class="sdp-alert sdp-tone-red" role="alert"><?php echo $this->escape($this->error); ?></div>

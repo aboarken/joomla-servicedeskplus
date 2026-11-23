@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.joomla.org/schemas/json-schema/web_assets.json",
   "name": "com_servicedeskplus",
-  "version": "1.32.5",
+  "version": "1.33.0",
   "description": "ServiceDesk Plus portal assets",
   "license": "GPL-2.0-or-later",
   "assets": [
@@ -11,7 +11,8 @@
       "uri": "com_servicedeskplus/submit-once.js",
       "attributes": {
         "defer": true
-      }
+      },
+      "version": "auto"
     },
     {
       "name": "com_servicedeskplus.preview",
@@ -19,7 +20,8 @@
       "uri": "com_servicedeskplus/preview.js",
       "attributes": {
         "defer": true
-      }
+      },
+      "version": "auto"
     },
     {
       "name": "com_servicedeskplus.filters",
@@ -27,7 +29,8 @@
       "uri": "com_servicedeskplus/filters.js",
       "attributes": {
         "defer": true
-      }
+      },
+      "version": "auto"
     },
     {
       "name": "com_servicedeskplus.refresh",
@@ -38,17 +41,20 @@
       ],
       "attributes": {
         "defer": true
-      }
+      },
+      "version": "auto"
     },
     {
       "name": "com_servicedeskplus.portal",
       "type": "style",
-      "uri": "com_servicedeskplus/portal.css"
+      "uri": "com_servicedeskplus/portal.css",
+      "version": "auto"
     },
     {
       "name": "com_servicedeskplus.admin",
       "type": "style",
-      "uri": "com_servicedeskplus/admin.css"
+      "uri": "com_servicedeskplus/admin.css",
+      "version": "auto"
     }
   ]
 }

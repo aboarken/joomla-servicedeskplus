@@ -22,7 +22,8 @@
   const build = () => {
     dialog = document.createElement('dialog');
     dialog.className = 'sdp-preview';
-    dialog.innerHTML = '<div class="sdp-preview-head"><strong class="sdp-preview-title"></strong>'
+    dialog.setAttribute('aria-labelledby', 'sdp-preview-title');
+    dialog.innerHTML = '<div class="sdp-preview-head"><strong class="sdp-preview-title" id="sdp-preview-title"></strong>'
       + '<span class="sdp-preview-actions"><a class="sdp-back" data-sdp-preview-open target="_blank" rel="noopener"></a>'
       + '<a class="sdp-back" data-sdp-preview-download download></a>'
       + '<button type="button" class="sdp-back" data-sdp-preview-close></button></span></div>'

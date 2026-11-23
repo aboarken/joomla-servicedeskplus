@@ -31,7 +31,9 @@ final class JoomlaLogger extends AbstractLogger
         if (!self::$registered) {
             Log::addLogger(
                 ['text_file' => 'com_servicedeskplus.php', 'text_entry_format' => '{DATETIME}	{PRIORITY}	{MESSAGE}'],
-                Log::ALL & ~Log::DEBUG,
+                // Every ServiceDesk Plus read is logged at DEBUG: only with System → Global
+                // Configuration → Debug System on, so the file does not grow with every page view.
+                \defined('JDEBUG') && JDEBUG ? Log::ALL : Log::ALL & ~Log::DEBUG,
                 [self::CATEGORY]
             );
             self::$registered = true;

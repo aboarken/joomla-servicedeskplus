@@ -17,8 +17,8 @@ namespace SdpPortal\Component\ServiceDeskPlus\Administrator\Security;
  *  1. Environment variable SDP_PORTAL_SECRET (recommended; at least 32 characters).
  *  2. The "secret" value from Joomla's configuration.php (file on disk, not the database).
  *
- * Changing the secret makes stored keys unreadable: the admin must re-enter the service key
- * and users must re-enter their approver keys.
+ * Changing the secret makes the stored key unreadable: the administrator must enter the API key
+ * again (Integration Settings).
  */
 final class SecretProvider
 {

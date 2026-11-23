@@ -374,7 +374,10 @@ final class Diagnostics
         }
 
         if ($e->getSdpMessage() !== '') {
-            $text .= ', server said: ' . mb_substr($e->getSdpMessage(), 0, 200);
+            // The report is sent to support: e-mail addresses ServiceDesk Plus may repeat from a
+            // search are left out.
+            $said  = preg_replace('/[^\s@<>"\'(),;]+@[^\s@<>"\'(),;]+/u', '[e-mail]', $e->getSdpMessage()) ?? '';
+            $text .= ', server said: ' . mb_substr($said, 0, 200);
         }
 
         $hint = match ($e->getKind()) {

@@ -168,7 +168,7 @@ $types       = [
         <nav aria-label="<?php echo $this->escape(Text::_('JLIB_HTML_PAGINATION')); ?>">
             <ul class="pagination">
                 <li class="page-item <?php echo $this->result->page <= 1 ? 'disabled' : ''; ?>">
-                    <a class="page-link" href="<?php echo $this->pageUrl($this->result->page - 1); ?>">&larr; <?php echo Text::_('JPREV'); ?></a>
+                    <a class="page-link" href="<?php echo $this->pageUrl($this->result->page - 1); ?>"><span class="sdp-arrow" aria-hidden="true">&larr;</span> <?php echo Text::_('JPREV'); ?></a>
                 </li>
                 <li class="page-item disabled">
                     <span class="page-link">
@@ -176,7 +176,7 @@ $types       = [
                     </span>
                 </li>
                 <li class="page-item <?php echo $this->result->hasMore ? '' : 'disabled'; ?>">
-                    <a class="page-link" href="<?php echo $this->pageUrl($this->result->page + 1); ?>"><?php echo Text::_('JNEXT'); ?> &rarr;</a>
+                    <a class="page-link" href="<?php echo $this->pageUrl($this->result->page + 1); ?>"><?php echo Text::_('JNEXT'); ?> <span class="sdp-arrow" aria-hidden="true">&rarr;</span></a>
                 </li>
             </ul>
         </nav>

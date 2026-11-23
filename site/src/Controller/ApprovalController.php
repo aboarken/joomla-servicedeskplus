@@ -115,6 +115,11 @@ final class ApprovalController extends BaseController
                 ->attachmentForUser($identity, $requestId, $levelId, $approvalId, $module, $attachmentId);
         } catch (ApprovalNotFound) {
             throw new RouteNotFoundException(Text::_('COM_SERVICEDESKPLUS_APPROVAL_ATTACHMENT_NOT_FOUND'), 404);
+        } catch (RateLimitExceeded) {
+            $this->app->enqueueMessage(Text::_('COM_SERVICEDESKPLUS_APPROVAL_ATTACHMENT_RATE_LIMITED'), 'warning');
+            $this->setRedirect(Route::_($detailUrl, false));
+
+            return;
         } catch (SdpException $e) {
             $this->app->enqueueMessage(Text::_('COM_SERVICEDESKPLUS_APPROVAL_ATTACHMENT_FAILED'), 'error');
             $this->setRedirect(Route::_($detailUrl, false));
@@ -141,6 +146,9 @@ final class ApprovalController extends BaseController
     private function sendFile(string $name, string $content, bool $inline = false): void
     {
         // A plain file name: no path, no control or quote characters.
+        // Bidirectional and other invisible format characters are removed too: "invoice\u{202E}gpj.exe"
+        // would otherwise be shown as "invoiceexe.jpg".
+        $name      = preg_replace('/[\p{Cf}]+/u', '', $name) ?? '';
         $name      = trim(preg_replace('/[\x00-\x1F\x7F"\\\\\/:*?<>|]+/u', '_', basename(str_replace('\\', '/', $name))) ?? '', " ._");
         $name      = $name !== '' ? $name : 'attachment';
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));

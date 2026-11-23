@@ -17,6 +17,18 @@ use SdpPortal\Component\ServiceDeskPlus\Administrator\Api\Redactor;
 
 final class DbAuditLog implements AuditLogInterface, AuditCounterInterface, AuditHistoryInterface
 {
+    /** Audit rows are kept this long (approval decisions always). */
+    public const KEEP_DAYS = 365;
+
+    /** Actions never pruned. */
+    private const KEEP_ACTIONS = ['approval.approve', 'approval.reject'];
+
+    public function __construct(
+        private readonly DatabaseInterface $db,
+        private readonly LoggerInterface $logger
+    ) {
+    }
+
     public function recent(int $userId, array $actions, int $limit): array
     {
         if ($actions === []) {
@@ -56,12 +68,6 @@ final class DbAuditLog implements AuditLogInterface, AuditCounterInterface, Audi
         return (int) $this->db->setQuery($query)->loadResult();
     }
 
-    public function __construct(
-        private readonly DatabaseInterface $db,
-        private readonly LoggerInterface $logger
-    ) {
-    }
-
     public function record(
         int $userId,
         string $action,
@@ -90,6 +96,34 @@ final class DbAuditLog implements AuditLogInterface, AuditCounterInterface, Audi
             $this->db->insertObject('#__sdp_audit', $row);
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Audit write failed for action %s, user %d', $row->action, $row->user_id));
+
+            return;
+        }
+
+        // Now and then, remove rows older than KEEP_DAYS so the table does not grow without end.
+        // Approval decisions are kept: My Approvals shows them as history and the Dashboard
+        // counts them. The rate limits only look at the last hour.
+        if (random_int(1, 200) === 1) {
+            $this->prune();
+        }
+    }
+
+    /**
+     * Delete rows older than KEEP_DAYS, except approval decisions.
+     */
+    public function prune(): void
+    {
+        $before = gmdate('Y-m-d H:i:s', time() - self::KEEP_DAYS * 86400);
+
+        try {
+            $query = $this->db->createQuery()
+                ->delete($this->db->quoteName('#__sdp_audit'))
+                ->where($this->db->quoteName('created') . ' < :before')
+                ->whereNotIn($this->db->quoteName('action'), self::KEEP_ACTIONS, ParameterType::STRING)
+                ->bind(':before', $before);
+            $this->db->setQuery($query)->execute();
+        } catch (\Throwable) {
+            $this->logger->warning('Old audit rows could not be removed');
         }
     }
 }
