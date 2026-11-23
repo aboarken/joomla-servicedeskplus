@@ -25,6 +25,15 @@
   };
 
   const init = (form) => {
+    // A page restored by Back from the browser's cache keeps the "submitting" mark of the
+    // filter it left with; without this its filters would no longer react.
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        delete form.dataset.sdpSubmitting;
+        form.removeAttribute('aria-busy');
+      }
+    });
+
     form.querySelectorAll('select').forEach((select) => {
       select.addEventListener('change', () => submit(form));
     });

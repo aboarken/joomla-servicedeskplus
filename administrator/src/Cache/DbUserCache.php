@@ -68,8 +68,14 @@ final class DbUserCache implements UserCacheInterface
 
     public function get(Identity $identity, string $key): ?array
     {
-        if ($this->ttl <= 0 || !$identity->isMatched()) {
+        if (!$identity->isMatched()) {
             return null;
+        }
+
+        // Caching switched off: nothing is kept between pages, but within one page a result is
+        // read from ServiceDesk Plus only once.
+        if ($this->ttl <= 0) {
+            return $this->memo[$identity->joomlaUserId . '|' . $this->key($identity, $key)][1] ?? null;
         }
 
         $row = $this->read($identity->joomlaUserId, $this->key($identity, $key));
@@ -96,7 +102,13 @@ final class DbUserCache implements UserCacheInterface
 
     public function set(Identity $identity, string $key, array $value): void
     {
-        if ($this->ttl <= 0 || !$identity->isMatched()) {
+        if (!$identity->isMatched()) {
+            return;
+        }
+
+        if ($this->ttl <= 0) {
+            $this->memo[$identity->joomlaUserId . '|' . $this->key($identity, $key)] = [($this->clock)(), $value];
+
             return;
         }
 

@@ -51,6 +51,9 @@ final class ApprovalService
     /** Largest attachment the portal passes on (bytes). */
     public const ATTACHMENT_MAX_BYTES = 30 * 1024 * 1024;
 
+    /** Attachment downloads (and previews) per user and hour. */
+    public const ATTACHMENTS_PER_HOUR = 200;
+
     public const OUTCOME_CONFIRMED   = 'confirmed';
     public const OUTCOME_UNCONFIRMED = 'unconfirmed';
 
@@ -107,10 +110,19 @@ final class ApprovalService
     public function listPending(Identity $identity): array
     {
         $sdpUserId = $identity->sdpUserId();
-        $cached    = $this->cache->get($identity, 'approvals:pending');
+
+        if ($this->isApprovalAccount($identity)) {
+            return [];
+        }
+
+        $cached = $this->cache->get($identity, 'approvals:pending');
 
         if ($cached !== null) {
-            return array_map(static fn (array $a) => PendingApproval::fromArray($a), $cached);
+            // Only the modules enabled now: the list may have been cached before a module was switched off.
+            return array_values(array_filter(
+                array_map(static fn (array $a) => PendingApproval::fromArray($a), $cached),
+                fn (PendingApproval $p): bool => \in_array($p->module, $this->modules, true)
+            ));
         }
 
         $client  = $this->client();
@@ -458,11 +470,16 @@ final class ApprovalService
      *
      * @return array{name: string, content: string}
      *
-     * @throws ApprovalNotFound|SdpException
+     * @throws ApprovalNotFound|RateLimitExceeded|SdpException
      */
     public function attachmentForUser(Identity $identity, string $requestId, string $levelId, string $approvalId, string $module, string $attachmentId): array
     {
         $module = ApprovalModule::normalize($module) ?? throw new ApprovalNotFound();
+
+        // Each download costs several ServiceDesk Plus calls and up to 30 MB of memory.
+        if (!$this->rateLimiter->allow($identity->joomlaUserId, 'approval.attachment', self::ATTACHMENTS_PER_HOUR)) {
+            throw new RateLimitExceeded();
+        }
 
         [, , $requestId, $levelId, $approvalId] = $this->locateOwn($identity, $requestId, $levelId, $approvalId, $module);
 
@@ -974,6 +991,33 @@ final class ApprovalService
     }
 
     /**
+     * Whether the user is linked to the API technician's ServiceDesk Plus user. The id is looked
+     * up by the technician's e-mail once and kept in the user's cache.
+     */
+    private function isApprovalAccount(Identity $identity): bool
+    {
+        if (trim($this->approvalAccountEmail) === '' || !$identity->isMatched()) {
+            return false;
+        }
+
+        $key    = 'approvals:account:' . hash('sha256', mb_strtolower(trim($this->approvalAccountEmail)));
+        $cached = $this->cache->get($identity, $key);
+
+        if (\is_array($cached) && \is_string($cached['id'] ?? null)) {
+            $accountId = $cached['id'];
+        } else {
+            $accountId = (string) $this->approvalAccountId();
+
+            // Not stored when the lookup failed, so it is tried again on the next page.
+            if ($accountId !== '' || $this->approvalAccountId === '') {
+                $this->cache->set($identity, $key, ['id' => $accountId]);
+            }
+        }
+
+        return $accountId !== '' && $accountId === $identity->sdpUserId();
+    }
+
+    /**
      * SDP user id of the approval account (exact e-mail match), or null when it is not found.
      */
     private function approvalAccountId(): ?string
@@ -1141,6 +1185,15 @@ final class ApprovalService
         // A module switched off under "Show approvals for" can't be opened, downloaded from or
         // decided here either, not only hidden from the list.
         if (!\in_array($module, $this->modules, true)) {
+            throw new ApprovalNotFound();
+        }
+
+        // The API technician decides on approvers' behalf and holds approval entries of its own.
+        // A portal user linked to that ServiceDesk Plus user (e.g. by an administrator before this
+        // was refused, or before the account was chosen) may not open or decide them.
+        if ($this->isApprovalAccount($identity)) {
+            $this->audit->record($identity->joomlaUserId, 'approval.view', AuditLogInterface::RESULT_DENIED, null, null, 'api_account');
+
             throw new ApprovalNotFound();
         }
 

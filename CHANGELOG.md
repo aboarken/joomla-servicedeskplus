@@ -3,6 +3,43 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.33.0] - 2026-11-23
+
+Technical and security audit (report: `docs/audit/2026-11-audit.md`).
+
+### Security
+- **The API technician check now also uses the ServiceDesk Plus id.** A portal user linked to the API technician's ServiceDesk Plus user sees no approvals and cannot open, download from or decide any, even when the link was made before 1.31.6 or before that technician was chosen. The attempt is recorded in the audit log.
+- **Settings changes clear cached approval lists.** Changing *Show approvals for* or the API technician e-mail clears the cache, and cached lists never show a switched-off module.
+- **One spelling per id:** ids with leading zeros (`0123`) are refused, so the same approval can't be decided twice at once under two names.
+- **Attachment downloads are limited** to 200 per user and hour; each one costs several ServiceDesk Plus calls.
+- **Approval comments:** quotes are written as entities too.
+- **Downloaded file names:** invisible direction characters are removed, so `invoice‮gpj.exe` can't pass for a picture.
+- **Find Endpoints report:** e-mail addresses in ServiceDesk Plus error texts are replaced by `[e-mail]`.
+- **New request form:** text kept in the session for the form is cut to the form's limits.
+- **Release workflow:** the package is built from the exact commit of the run, the one the release is tagged on.
+
+### Changed
+- **Faster request pages:** the conversation entries and the approvals of every level are read in parallel instead of one after another (up to about 30 calls).
+- **A read that timed out is not sent again:** it would make the page wait the whole timeout a second time. Connection failures are still tried once more.
+- **When ServiceDesk Plus can't be reached during the daily identity re-check,** the next try comes 15 minutes later instead of on every page.
+- **With the cache time set to 0,** results are still read only once per page.
+- **Smaller log file:** each page's ServiceDesk Plus reads are logged only while Joomla's *Debug System* is on. Warnings, errors and changes are always logged.
+- **The audit table no longer grows without end:** rows older than 365 days are removed now and then, except approval decisions. A new index covers the rate-limit and history queries (database update 1.33.0, MySQL and PostgreSQL).
+- **Accessibility:**
+  - higher text contrast for muted, red and tile texts;
+  - a visible focus outline on buttons;
+  - the priority bars name their priority for screen readers;
+  - the attachment popup has an accessible name;
+  - decorative symbols are hidden from screen readers.
+- **Right-to-left (Arabic):** the layout uses logical CSS properties, arrows point the right way, and no letter spacing is applied to Arabic.
+- **Browsers fetch the new CSS and JavaScript after an update** (web asset versions).
+- **Filters work again after going Back** to a list.
+- `curl_close()` is no longer called (deprecated in PHP 8.5).
+
+### Added
+- **Unit tests** (PHPUnit, 76 tests). They cover the API client, identity matching, mappings, approval guards, attachments, encryption, submission tokens and rate limits, the request readers and Find Endpoints. They run in the release workflow; Composer is used for development tools only. Dependabot also watches them.
+- The package check also compares the web asset version with the manifest.
+
 ## [1.32.5] - 2026-11-22
 
 ### Fixed

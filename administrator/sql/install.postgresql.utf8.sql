@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS "#__sdp_audit" (
 );
 CREATE INDEX IF NOT EXISTS "#__sdp_audit_idx_user_created" ON "#__sdp_audit" ("user_id", "created");
 CREATE INDEX IF NOT EXISTS "#__sdp_audit_idx_action_created" ON "#__sdp_audit" ("action", "created");
+CREATE INDEX IF NOT EXISTS "#__sdp_audit_idx_user_action_created" ON "#__sdp_audit" ("user_id", "action", "created");
 
 CREATE TABLE IF NOT EXISTS "#__sdp_cache" (
   "user_id" bigint NOT NULL,

@@ -18,6 +18,7 @@ use Joomla\CMS\Router\Route;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Api\SdpException;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Requests\AttachmentValidator;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Requests\InvalidRequestInput;
+use SdpPortal\Component\ServiceDeskPlus\Administrator\Requests\RequestService;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Security\RateLimitExceeded;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Security\SubmissionGuard;
 use SdpPortal\Component\ServiceDeskPlus\Site\Model\RequestformModel;
@@ -148,6 +149,11 @@ final class RequestController extends BaseController
 
     private function keepInput(string $subject, string $description): void
     {
-        $this->app->setUserState(RequestformModel::INPUT_KEY, ['subject' => $subject, 'description' => $description]);
+        // Kept in the session to fill the form again; never more than the form accepts (a little
+        // over, so the "too long" message still applies), whatever size was posted.
+        $this->app->setUserState(RequestformModel::INPUT_KEY, [
+            'subject'     => mb_substr($subject, 0, RequestService::SUBJECT_MAX + 1),
+            'description' => mb_substr($description, 0, RequestService::DESCRIPTION_MAX + 1),
+        ]);
     }
 }

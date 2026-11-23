@@ -11,6 +11,7 @@ namespace SdpPortal\Component\ServiceDeskPlus\Administrator\Api;
 // phpcs:enable PSR1.Files.SideEffects
 
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Api\Transport\TransportException;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Api\Transport\ParallelTransportInterface;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Api\Transport\TransportInterface;
@@ -260,6 +261,27 @@ final class SdpClient
     }
 
     /**
+     * getApprovals() for several levels of one record at once.
+     *
+     * @param  list<string>  $levelIds
+     *
+     * @return array<string, list<array<string, mixed>>|SdpException>  level id => approvals or the error
+     */
+    public function getApprovalsOfLevels(string $entityId, array $levelIds, string $module = ApprovalModule::REQUEST, int $concurrency = self::DEFAULT_CONCURRENCY): array
+    {
+        $calls = [];
+
+        foreach ($levelIds as $levelId) {
+            $calls[self::id($levelId)] = [
+                self::modulePath($module, $entityId) . '/approval_levels/' . self::id($levelId) . '/approvals',
+                ['list_info' => ['row_count' => ListInfo::MAX_ROW_COUNT, 'start_index' => 1]],
+            ];
+        }
+
+        return $calls === [] ? [] : $this->collectionsOf($this->getMany($calls, $concurrency), 'approvals');
+    }
+
+    /**
      * getApprovals() for several records at once, one level each.
      *
      * @param  array<string, string>  $levelByEntity  entity id => level id
@@ -383,13 +405,13 @@ final class SdpClient
         $ms = $response->timing['total'] ?? $elapsed;
         PageStats::add($path, $ms, true);
         $this->lastTiming = $response->timing;
-        $this->logger->info(\sprintf('SDP GET %s -> HTTP %d, %d bytes, %d ms%s', $path, $response->status, \strlen($response->body), $ms, self::timing($response->timing)));
+        $this->logger->debug(\sprintf('SDP GET %s -> HTTP %d, %d bytes, %d ms%s', $path, $response->status, \strlen($response->body), $ms, self::timing($response->timing)));
 
         return $response->body;
     }
 
     /**
-     * The approval comment with <, > and & written as entities, at most $max characters, cut
+     * The approval comment with <, >, &, " and ' written as entities, at most $max characters, cut
      * between characters (never inside an entity). ServiceDesk Plus may show the comment as HTML
      * to technicians, so a comment or a Joomla name with markup must not become markup there.
      * The portal reads comments back through HtmlText::toPlain, which decodes them again.
@@ -404,6 +426,8 @@ final class SdpClient
                 '<'     => '&lt;',
                 '>'     => '&gt;',
                 '&'     => '&amp;',
+                '"'     => '&quot;',
+                "'"     => '&#39;',
                 default => $char,
             };
 
@@ -539,6 +563,53 @@ final class SdpClient
      */
     public function getConversationItem(string $requestId, string $contentUrl): array
     {
+        [$path, $key] = self::conversationPath($requestId, $contentUrl);
+
+        return $this->entity($this->get($path), $key);
+    }
+
+    /**
+     * getConversationItem() for several items at once. An item whose content_url is not one of
+     * this request's notes or e-mails is never read; it gives an InvalidArgumentException.
+     *
+     * @param  array<int|string, string>  $contentUrls  key => content_url
+     *
+     * @return array<int|string, array<string, mixed>|SdpException|\InvalidArgumentException>  Same keys
+     */
+    public function getConversationItems(string $requestId, array $contentUrls, int $concurrency = self::DEFAULT_CONCURRENCY): array
+    {
+        $calls = [];
+        $keys  = [];
+        $out   = [];
+
+        foreach ($contentUrls as $k => $url) {
+            try {
+                [$calls[$k][0], $keys[$k]] = self::conversationPath($requestId, $url);
+                $calls[$k][1]              = null;
+            } catch (\InvalidArgumentException $e) {
+                $out[$k] = $e;
+            }
+        }
+
+        foreach ($calls === [] ? [] : $this->getMany($calls, $concurrency) as $k => $result) {
+            try {
+                $out[$k] = $result instanceof SdpException ? $result : $this->entity($result, $keys[$k]);
+            } catch (SdpException $e) {
+                $out[$k] = $e;
+            }
+        }
+
+        return array_replace(array_intersect_key($contentUrls, $out), $out);
+    }
+
+    /**
+     * The API path of a conversation item and its response key, only for this request's notes and
+     * e-mails (the content_url comes from ServiceDesk Plus and is checked before it is used).
+     *
+     * @return array{0: string, 1: string}
+     */
+    private static function conversationPath(string $requestId, string $contentUrl): array
+    {
         $prefix = '/api/v3/requests/' . self::id($requestId) . '/';
         $path   = (string) parse_url($contentUrl, PHP_URL_PATH);
 
@@ -546,7 +617,7 @@ final class SdpClient
             throw new \InvalidArgumentException('Unexpected conversation content_url');
         }
 
-        return $this->entity($this->get($path), $m[1] === 'notes' ? 'note' : 'notification');
+        return [$path, $m[1] === 'notes' ? 'note' : 'notification'];
     }
 
     /**
@@ -788,7 +859,9 @@ final class SdpClient
     {
         $id = (string) $id;
 
-        if (!preg_match('/^[0-9]{1,20}$/', $id)) {
+        // One spelling per id: "0123" would reach the same record as "123" but under another
+        // name (e.g. another decision lock), so leading zeros are refused.
+        if (!preg_match('/^[1-9][0-9]{0,19}$/', $id)) {
             throw new \InvalidArgumentException('Invalid ServiceDesk Plus id');
         }
 
@@ -945,7 +1018,7 @@ final class SdpClient
         $batchMs = (int) ((hrtime(true) - $started) / 1_000_000);
         PageStats::waited($batchMs);
 
-        $this->logger->info(\sprintf('SDP %d reads in parallel (up to %d at a time): %d ms in total', \count($calls), $concurrency, $batchMs));
+        $this->logger->debug(\sprintf('SDP %d reads in parallel (up to %d at a time): %d ms in total', \count($calls), $concurrency, $batchMs));
 
         return $out;
     }
@@ -984,7 +1057,9 @@ final class SdpClient
             try {
                 return $this->transport->send($method, $url, $headers, $body);
             } catch (TransportException $e) {
-                $retry = $attempt < $attempts;
+                // A timed-out read is not repeated: it would keep the page waiting for the whole
+                // timeout a second time.
+                $retry = $attempt < $attempts && !$e->isTimeout();
 
                 $this->logger->warning(\sprintf(
                     'SDP %s %s failed%s: %s',
@@ -1092,7 +1167,8 @@ final class SdpClient
             throw new SdpException(SdpException::BAD_RESPONSE, 'ServiceDesk Plus returned an unreadable response', $response->status);
         }
 
-        $this->logger->info(\sprintf('SDP %s %s -> HTTP %d, %d ms%s', $method, $path, $response->status, $ms, $timing));
+        // Reads are logged only with Joomla's debug mode on (they happen on every page); writes always.
+        $this->logger->log($method === 'GET' ? LogLevel::DEBUG : LogLevel::INFO, \sprintf('SDP %s %s -> HTTP %d, %d ms%s', $method, $path, $response->status, $ms, $timing));
 
         return $decoded;
     }

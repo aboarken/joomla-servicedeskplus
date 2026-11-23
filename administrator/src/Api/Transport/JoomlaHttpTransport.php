@@ -49,19 +49,16 @@ final class JoomlaHttpTransport implements ParallelTransportInterface
     public function send(string $method, string $url, array $headers, ?string $body): TransportResponse
     {
         if ($method === 'GET' && \function_exists('curl_init')) {
-            $handle = $this->handle($url, $headers);
+            // The handle is freed when it goes out of scope (curl_close() does nothing since PHP 8
+            // and is deprecated in PHP 8.5).
+            $handle  = $this->handle($url, $headers);
+            $content = curl_exec($handle);
 
-            try {
-                $content = curl_exec($handle);
-
-                if ($content === false || curl_errno($handle) !== 0) {
-                    throw $this->failure(curl_error($handle));
-                }
-
-                return $this->response($handle, (string) $content);
-            } finally {
-                curl_close($handle);
+            if ($content === false || curl_errno($handle) !== 0) {
+                throw $this->failure(curl_error($handle));
             }
+
+            return $this->response($handle, (string) $content);
         }
 
         return $this->sendWithJoomla($method, $url, $headers, $body);
@@ -116,7 +113,6 @@ final class JoomlaHttpTransport implements ParallelTransportInterface
                         : $this->failure(curl_error($handle) ?: curl_strerror($info['result']));
 
                     curl_multi_remove_handle($multi, $handle);
-                    curl_close($handle);
                 }
 
                 if ($running !== [] && curl_multi_select($multi, 1.0) === -1) {
@@ -126,7 +122,6 @@ final class JoomlaHttpTransport implements ParallelTransportInterface
         } finally {
             foreach ($running as [$key, $handle]) {
                 curl_multi_remove_handle($multi, $handle);
-                curl_close($handle);
                 $out[$key] ??= $this->failure('transfer not finished');
             }
 
@@ -398,10 +393,6 @@ final class JoomlaHttpTransport implements ParallelTransportInterface
         if ($supported === null) {
             $probe     = curl_init();
             $supported = $probe !== false && @curl_setopt($probe, CURLOPT_PINNEDPUBLICKEY, 'sha256//' . base64_encode(str_repeat("\0", 32)));
-
-            if ($probe !== false) {
-                curl_close($probe);
-            }
         }
 
         return $supported;

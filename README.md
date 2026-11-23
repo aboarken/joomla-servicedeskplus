@@ -92,7 +92,7 @@ Joomla acts as the user-facing portal, while ServiceDesk Plus remains the primar
 
 | Requirement | Version / Details |
 |---|---|
-| Joomla | 6.0 or later |
+| Joomla | 6.x (6.0 or later; updates are offered to Joomla 6 sites) |
 | PHP | 8.3 or later, with the OpenSSL (AES-256-GCM) and cURL extensions |
 | ManageEngine ServiceDesk Plus | REST API access |
 | ServiceDesk Plus deployment | On-Premises |
@@ -180,6 +180,10 @@ API credentials should be stored securely and should never be exposed to fronten
 - Users are found in ServiceDesk Plus by their Joomla e-mail. By default a first-visit match works at once; with *Integration Settings → Users → New users: Wait for administrator approval* **every new match waits for an administrator** (Joomla lets users change their own e-mail without verifying it, so an address alone does not prove who someone is): the user sees "…waiting for an administrator to approve it" until an administrator confirms the mapping under *User Mappings* (filter *Waiting for approval*, select, **Confirm**; several at once). **A user whose Joomla e-mail changes is always suspended** until an administrator checks it. If several ServiceDesk Plus users share an e-mail, an administrator chooses. Mappings an administrator makes with *New* are active at once. The API technician (*Integration Settings → Approvals → API technician e-mail*) is never linked to a portal user, by e-mail or by an administrator.
 - Matching trusts the e-mail of each Joomla account. If your site allows self-registration, keep *Users → Options → New User Account Activation* on **Self** or **Administrator**, so nobody can register with another person's address.
 - Every page and action checks login, the feature's permission and the user's own ServiceDesk Plus records; actions need a POST with Joomla's form token.
+- A portal user who is linked to the API technician's ServiceDesk Plus user (for example by an administrator before 1.31.6) sees no approvals and cannot open or decide any.
+- Rate limits per user and hour: decisions (*Integration Settings*), new requests, attachment downloads (200) and Find Endpoints runs (60, administrators).
+- **Logs:** `administrator/logs/com_servicedeskplus.php` holds warnings, errors and every change sent to ServiceDesk Plus. The reads of each page are written only while *System → Global Configuration → Debug System* is on (use it to troubleshoot, then turn it off). Keys are never written.
+- **Audit table:** `#__sdp_audit` keeps decisions, requests, mapping changes and access denials. Rows older than 365 days are removed now and then, except approval decisions (shown as history and counted on the Dashboard).
 
 ## Project Structure
 
@@ -214,7 +218,12 @@ com_servicedeskplus/
 │   ├── make-changelog-xml.py
 │   ├── make-update-xml.py
 │   └── verify-package.py
-├── docs/release-notes/
+├── docs/
+│   ├── audit/            # technical and security audit reports
+│   └── release-notes/
+├── tests/                # unit tests (PHPUnit), not part of the package
+├── composer.json         # development tools only
+├── phpunit.xml.dist
 ├── CHANGELOG.md
 ├── LICENSE
 ├── README.md
@@ -234,8 +243,22 @@ To contribute:
 1. Fork the repository.
 2. Create a feature branch.
 3. Implement your changes.
-4. Test your changes in a Joomla development environment.
+4. Run the unit tests (below) and test your changes in a Joomla development environment.
 5. Submit a pull request.
+
+### Unit tests
+
+The component's own classes (API client, identity matching, approvals, attachments, encryption, Find Endpoints) are tested without a Joomla installation: ServiceDesk Plus is replaced by a fake transport that records every call.
+
+```bash
+composer install
+```
+
+```bash
+vendor/bin/phpunit
+```
+
+The tests run in the release workflow for every pull request; a failing test stops the build. Composer installs development tools only: nothing from `vendor/` is shipped in the package.
 
 ### Building the installation package
 
