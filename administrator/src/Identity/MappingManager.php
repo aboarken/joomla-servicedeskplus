@@ -26,6 +26,7 @@ final class MappingManager
     /**
      * @param  \Closure(): SdpClient                  $clientFactory
      * @param  (\Closure(): \DateTimeImmutable)|null  $clock
+     * @param  (\Closure(int): bool)|null             $userExists  Whether a Joomla user id still exists; null = not checked
      */
     public function __construct(
         private readonly UserMapRepositoryInterface $repository,
@@ -33,7 +34,8 @@ final class MappingManager
         private readonly AuditLogInterface $audit,
         ?\Closure $clock = null,
         private readonly ?UserCacheInterface $cache = null,
-        private readonly string $apiAccountEmail = ''
+        private readonly string $apiAccountEmail = '',
+        private readonly ?\Closure $userExists = null
     ) {
         $this->clock = $clock ?? static fn (): \DateTimeImmutable => new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     }
@@ -71,6 +73,14 @@ final class MappingManager
         }
 
         $owner   = $this->repository->findBySdpUserId($sdpUserId);
+
+        // The mapping of a deleted Joomla account no longer holds the ServiceDesk Plus user.
+        if ($owner !== null && $owner->joomlaUserId !== $joomlaUserId && $this->userExists !== null && !($this->userExists)($owner->joomlaUserId)) {
+            $this->repository->delete($owner->joomlaUserId);
+            $this->cache?->clearUser($owner->joomlaUserId);
+            $this->audit->record($owner->joomlaUserId, 'identity.orphan_removed', AuditLogInterface::RESULT_OK, null, null, 'joomla_user_deleted sdp_user:' . $sdpUserId, $actorId);
+            $owner = null;
+        }
 
         if ($owner !== null && $owner->joomlaUserId !== $joomlaUserId) {
             $this->audit->record($joomlaUserId, 'mapping.assign', AuditLogInterface::RESULT_DENIED, null, null, 'sdp_user_already_mapped:' . $owner->joomlaUserId, $actorId);

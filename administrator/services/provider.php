@@ -15,6 +15,7 @@ use Joomla\CMS\Extension\Service\Provider\RouterFactory;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
 use Joomla\Database\DatabaseInterface;
+use Joomla\Database\ParameterType;
 use Joomla\DI\Container;
 use Joomla\DI\ServiceProviderInterface;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Announcements\AnnouncementService;
@@ -98,6 +99,11 @@ return new class () implements ServiceProviderInterface {
         );
 
         $container->share(
+            DecisionLock::class,
+            static fn (): DecisionLock => new DecisionLock((string) (Factory::getApplication()->get('tmp_path') ?: sys_get_temp_dir()))
+        );
+
+        $container->share(
             SubmissionGuard::class,
             static fn (): SubmissionGuard => new SubmissionGuard(
                 static fn (): array => (array) Factory::getApplication()->getSession()->get(self::TOKENS_SESSION_KEY, []),
@@ -106,6 +112,23 @@ return new class () implements ServiceProviderInterface {
         );
 
         $serviceClient = static fn (Container $c): \Closure => static fn () => $c->get(SdpClientFactory::class)->createServiceClient();
+
+        // Whether a Joomla account still exists. When the database cannot say, it counts as
+        // existing: a mapping is never removed on a doubt.
+        $userExists = static fn (Container $c): \Closure => static function (int $userId) use ($c): bool {
+            try {
+                $db    = $c->get(DatabaseInterface::class);
+                $query = $db->createQuery()
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__users'))
+                    ->where($db->quoteName('id') . ' = :id')
+                    ->bind(':id', $userId, ParameterType::INTEGER);
+
+                return (int) $db->setQuery($query)->loadResult() > 0;
+            } catch (\Throwable) {
+                return true;
+            }
+        };
 
         $container->share(
             IdentityResolver::class,
@@ -116,7 +139,8 @@ return new class () implements ServiceProviderInterface {
                 $c->get(JoomlaLogger::class),
                 cache: $c->get(UserCacheInterface::class),
                 autoApprove: $c->get(SettingsRepository::class)->load()->autoApproveMatches(),
-                apiAccountEmail: $c->get(SettingsRepository::class)->load()->approvalAccountEmail()
+                apiAccountEmail: $c->get(SettingsRepository::class)->load()->approvalAccountEmail(),
+                userExists: $userExists($c)
             )
         );
 
@@ -127,7 +151,8 @@ return new class () implements ServiceProviderInterface {
                 $serviceClient($c),
                 $c->get(AuditLogInterface::class),
                 cache: $c->get(UserCacheInterface::class),
-                apiAccountEmail: $c->get(SettingsRepository::class)->load()->approvalAccountEmail()
+                apiAccountEmail: $c->get(SettingsRepository::class)->load()->approvalAccountEmail(),
+                userExists: $userExists($c)
             )
         );
 
@@ -211,7 +236,7 @@ return new class () implements ServiceProviderInterface {
                     approvalAccountEmail: $settings->approvalAccountEmail(),
                     modules: $settings->approvalModules(),
                     concurrency: $settings->parallelRequests(),
-                    lock: new DecisionLock((string) (Factory::getApplication()->get('tmp_path') ?: sys_get_temp_dir()))
+                    lock: $c->get(DecisionLock::class)
                 );
             }
         );

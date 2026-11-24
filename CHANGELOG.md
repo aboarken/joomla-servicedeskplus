@@ -3,6 +3,28 @@
 All notable changes to `com_servicedeskplus` are documented in this file.
 Versions follow the component manifest (`servicedeskplus.xml`) and use [Semantic Versioning](https://semver.org/).
 
+## [1.34.0] - 2026-11-24
+
+Second audit round (report: `docs/audit/2026-11-audit-2.md`). For the first time the component was installed, upgraded, exercised and uninstalled in a real Joomla 6.2.1 site (PostgreSQL) against a stand-in ServiceDesk Plus server.
+
+### Security
+- **Every administrator page and task needs *Configure*** in one place (a component dispatcher), in addition to the checks in each controller.
+- **One-time form tokens hold for requests sent at the same moment.** Two submissions of the same new-request form sent together could both pass; the second is now refused, also across PHP processes. One request of a user is created at a time, so the hourly limit counts every earlier one.
+- **API answers are limited to 16 MB;** only attachment downloads may be 32 MB. An answer that was cut off is not requested again.
+
+### Fixed
+- **A deleted Joomla account no longer blocks its ServiceDesk Plus user.** When the person gets a new account, the old mapping is removed and the new account is matched. A mapping is never removed while its account exists.
+- **Parallel reads that timed out are not sent again** (single reads already were not).
+
+### Changed
+- **Announcements:** restricted announcements are read in parallel instead of one after another.
+- **No `style` attributes:** card counts and bar heights are set with classes, so the portal also works under a strict Content-Security-Policy (`style-src` without `'unsafe-inline'`).
+- **Pagination:** a disabled *Previous* or *Next* is plain text, not a link the keyboard can reach.
+
+### Added
+- **End-to-end tests** (`tests/EndToEnd`): 55 checks in a real Joomla site against a stand-in ServiceDesk Plus. They cover access control, form tokens, records of other users, escaping, approvals, new requests and Find Endpoints. See `tests/EndToEnd/README.md`.
+- 7 more unit tests (83 in total).
+
 ## [1.33.0] - 2026-11-23
 
 Technical and security audit (report: `docs/audit/2026-11-audit.md`).

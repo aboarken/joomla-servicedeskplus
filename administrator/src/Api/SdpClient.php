@@ -743,6 +743,34 @@ final class SdpClient
     }
 
     /**
+     * getAnnouncement() for several announcements at once.
+     *
+     * @param  list<string>  $announcementIds
+     *
+     * @return array<string, array<string, mixed>|SdpException>  id => announcement or the error
+     */
+    public function getAnnouncements(array $announcementIds, int $concurrency = self::DEFAULT_CONCURRENCY): array
+    {
+        $calls = [];
+
+        foreach ($announcementIds as $id) {
+            $calls[self::id($id)] = ['/api/v3/announcements/' . self::id($id), null];
+        }
+
+        $out = [];
+
+        foreach ($calls === [] ? [] : $this->getMany($calls, $concurrency) as $id => $result) {
+            try {
+                $out[(string) $id] = $result instanceof SdpException ? $result : $this->entity($result, 'announcement');
+            } catch (SdpException $e) {
+                $out[(string) $id] = $e;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * GET /api/v3/requests/{request_id} (requests/request.html, "Get Request").
      *
      * @return array<string, mixed>
@@ -985,7 +1013,8 @@ final class SdpClient
 
         // Reads that could not connect are tried once more, together (as a single read would be
         // tried once more). If ServiceDesk Plus is down this costs one extra round, not one per read.
-        $failed = array_filter($responses, static fn ($r): bool => $r instanceof TransportException);
+        // Like single reads: one that could not connect is tried once more, one that timed out is not.
+        $failed = array_filter($responses, static fn ($r): bool => $r instanceof TransportException && $r->canRetry());
 
         if ($failed !== []) {
             $this->logger->warning(\sprintf('SDP %d of %d parallel reads failed to connect (trying them again): %s', \count($failed), \count($calls), Redactor::scrub((string) reset($failed)->getMessage(), $secrets)));
@@ -1057,9 +1086,9 @@ final class SdpClient
             try {
                 return $this->transport->send($method, $url, $headers, $body);
             } catch (TransportException $e) {
-                // A timed-out read is not repeated: it would keep the page waiting for the whole
-                // timeout a second time.
-                $retry = $attempt < $attempts && !$e->isTimeout();
+                // A read that timed out or was cut off for its size is not repeated: it would
+                // only wait as long, or be as large, a second time.
+                $retry = $attempt < $attempts && $e->canRetry();
 
                 $this->logger->warning(\sprintf(
                     'SDP %s %s failed%s: %s',

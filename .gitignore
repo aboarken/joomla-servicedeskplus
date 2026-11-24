@@ -6,3 +6,4 @@ dist/
 *.swp
 /vendor/
 /.phpunit.cache/
+__pycache__/

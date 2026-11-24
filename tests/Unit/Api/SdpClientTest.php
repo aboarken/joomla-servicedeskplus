@@ -208,4 +208,47 @@ final class SdpClientTest extends SdpTestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->client()->decideApproval('100', '20', '3', 'delete', '');
     }
+
+    public function testSeveralAnnouncementsAreReadWithTheirErrorsKept(): void
+    {
+        $client = $this->client(static function (string $method, string $url): TransportResponse {
+            return str_ends_with((string) parse_url($url, PHP_URL_PATH), '/11')
+                ? FakeTransport::json(['announcement' => ['id' => '11', 'title' => 'Maintenance']])
+                : FakeTransport::json(['response_status' => ['status' => 'failed', 'messages' => [['status_code' => 4007, 'message' => 'Invalid URL']]]], 404);
+        });
+
+        $result = $client->getAnnouncements(['11', '12']);
+
+        self::assertSame('Maintenance', $result['11']['title']);
+        self::assertInstanceOf(SdpException::class, $result['12']);
+        self::assertSame(SdpException::NOT_FOUND, $result['12']->getKind());
+    }
+
+    public function testATimedOutReadIsNotSentAgain(): void
+    {
+        $client = $this->client(static fn () => new TransportException('Could not reach ServiceDesk Plus (timeout: Operation timed out after 20001 milliseconds)'));
+
+        try {
+            $client->get('/api/v3/requests');
+            self::fail('No exception');
+        } catch (SdpException $e) {
+            self::assertSame(SdpException::NETWORK, $e->getKind());
+        }
+
+        self::assertCount(1, $this->transport->sent);
+    }
+
+    public function testAnAnswerCutOffForItsSizeIsNotRequestedAgain(): void
+    {
+        $client = $this->client(static fn () => new TransportException('Could not reach ServiceDesk Plus (answer too large: Exceeded the maximum allowed file size)'));
+
+        try {
+            $client->get('/api/v3/requests');
+            self::fail('No exception');
+        } catch (SdpException $e) {
+            self::assertSame(SdpException::NETWORK, $e->getKind());
+        }
+
+        self::assertCount(1, $this->transport->sent);
+    }
 }

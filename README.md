@@ -180,8 +180,12 @@ API credentials should be stored securely and should never be exposed to fronten
 - Users are found in ServiceDesk Plus by their Joomla e-mail. By default a first-visit match works at once; with *Integration Settings → Users → New users: Wait for administrator approval* **every new match waits for an administrator** (Joomla lets users change their own e-mail without verifying it, so an address alone does not prove who someone is): the user sees "…waiting for an administrator to approve it" until an administrator confirms the mapping under *User Mappings* (filter *Waiting for approval*, select, **Confirm**; several at once). **A user whose Joomla e-mail changes is always suspended** until an administrator checks it. If several ServiceDesk Plus users share an e-mail, an administrator chooses. Mappings an administrator makes with *New* are active at once. The API technician (*Integration Settings → Approvals → API technician e-mail*) is never linked to a portal user, by e-mail or by an administrator.
 - Matching trusts the e-mail of each Joomla account. If your site allows self-registration, keep *Users → Options → New User Account Activation* on **Self** or **Administrator**, so nobody can register with another person's address.
 - Every page and action checks login, the feature's permission and the user's own ServiceDesk Plus records; actions need a POST with Joomla's form token.
+- Every administrator page and task needs the component's *Configure* permission.
+- When a Joomla account is deleted, its mapping is released the next time its ServiceDesk Plus user is matched, so the person's new account can be linked.
 - A portal user who is linked to the API technician's ServiceDesk Plus user (for example by an administrator before 1.31.6) sees no approvals and cannot open or decide any.
-- Rate limits per user and hour: decisions (*Integration Settings*), new requests, attachment downloads (200) and Find Endpoints runs (60, administrators).
+- Rate limits per user and hour: decisions (*Integration Settings*), new requests, attachment downloads (200) and Find Endpoints runs (60, administrators). A form sent twice, also at the same moment, acts once.
+- Answers from ServiceDesk Plus are limited to 16 MB (attachment downloads: 32 MB).
+- The portal sets no `style` attributes and no inline scripts, so it works with a strict Content-Security-Policy.
 - **Logs:** `administrator/logs/com_servicedeskplus.php` holds warnings, errors and every change sent to ServiceDesk Plus. The reads of each page are written only while *System → Global Configuration → Debug System* is on (use it to troubleshoot, then turn it off). Keys are never written.
 - **Audit table:** `#__sdp_audit` keeps decisions, requests, mapping changes and access denials. Rows older than 365 days are removed now and then, except approval decisions (shown as history and counted on the Dashboard).
 
@@ -259,6 +263,10 @@ vendor/bin/phpunit
 ```
 
 The tests run in the release workflow for every pull request; a failing test stops the build. Composer installs development tools only: nothing from `vendor/` is shipped in the package.
+
+### End-to-end tests
+
+`tests/EndToEnd` runs the component in a real Joomla 6 test site against a stand-in ServiceDesk Plus server (`fake-sdp.php`): installation, pages, permissions, form tokens, other users' records, approvals and new requests. They need a Joomla site and a database, so they are run by hand before a release, not in the workflow. See [tests/EndToEnd/README.md](tests/EndToEnd/README.md).
 
 ### Building the installation package
 

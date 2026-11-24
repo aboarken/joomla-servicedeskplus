@@ -21,14 +21,14 @@ final class IdentityResolverTest extends SdpTestCase
     private ArrayCache $cache;
 
     /** @param array<string, string> $users */
-    private function resolver(array $users, bool $autoApprove = true, string $apiAccountEmail = ''): IdentityResolver
+    private function resolver(array $users, bool $autoApprove = true, string $apiAccountEmail = '', ?\Closure $userExists = null): IdentityResolver
     {
         $client      = $this->client(self::usersHandler($users));
         $this->maps  ??= new InMemoryUserMaps();
         $this->audit = new RecordingAudit();
         $this->cache = new ArrayCache();
 
-        return new IdentityResolver($this->maps, static fn () => $client, $this->audit, new NullLogger(), null, $this->cache, $autoApprove, $apiAccountEmail);
+        return new IdentityResolver($this->maps, static fn () => $client, $this->audit, new NullLogger(), null, $this->cache, $autoApprove, $apiAccountEmail, $userExists);
     }
 
     protected function setUp(): void
@@ -106,6 +106,27 @@ final class IdentityResolverTest extends SdpTestCase
 
         self::assertFalse($identity->isMatched());
         self::assertSame(UserMapping::STATUS_SUSPENDED, $this->maps->find(7)?->status);
+    }
+
+    public function testTheMappingOfADeletedJoomlaAccountIsReleased(): void
+    {
+        // Joomla user 7 was linked to SDP user 501 and then deleted; the person registers again as user 8.
+        $this->resolver(['501' => 'a@example.com'])->resolve(7, 'a@example.com');
+        $identity = $this->resolver(['501' => 'a@example.com'], userExists: static fn (int $id): bool => $id !== 7)->resolve(8, 'a@example.com');
+
+        self::assertTrue($identity->isMatched());
+        self::assertNull($this->maps->find(7));
+        self::assertSame(8, $this->maps->findBySdpUserId('501')?->joomlaUserId);
+        self::assertContains('identity.orphan_removed ok joomla_user_deleted sdp_user:501', $this->audit->lines());
+    }
+
+    public function testTheMappingOfAnExistingAccountIsNeverReleased(): void
+    {
+        $this->resolver(['501' => 'a@example.com'])->resolve(7, 'a@example.com');
+        $identity = $this->resolver(['501' => 'a@example.com'], userExists: static fn (): bool => true)->resolve(8, 'a@example.com');
+
+        self::assertFalse($identity->isMatched());
+        self::assertSame(7, $this->maps->findBySdpUserId('501')?->joomlaUserId);
     }
 
     public function testGuestsAreNeverMatched(): void

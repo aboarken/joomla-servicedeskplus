@@ -20,4 +20,13 @@ final class TransportException extends \RuntimeException
     {
         return str_contains($this->getMessage(), '(timeout:');
     }
+
+    /**
+     * Whether sending the same read again can help: not after a timeout (it would wait as long
+     * once more) and not after an answer that was cut off for its size (it would be as large).
+     */
+    public function canRetry(): bool
+    {
+        return !$this->isTimeout() && !str_contains($this->getMessage(), '(answer too large:');
+    }
 }

@@ -34,11 +34,17 @@ final class JoomlaHttpTransport implements ParallelTransportInterface
     private static array $shares = [];
 
     /**
-     * Largest response read from ServiceDesk Plus: just above the largest attachment the portal
-     * downloads (30 MB). A bigger or endless answer, e.g. from a wrong or hijacked server, is
-     * cut off instead of filling PHP's memory.
+     * Largest API answer (JSON) read from ServiceDesk Plus. A bigger or endless answer, e.g. from
+     * a wrong or hijacked server, is cut off instead of filling PHP's memory (several reads may
+     * run at once, and decoding JSON needs several times its size).
      */
-    public const MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
+    public const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+
+    /**
+     * Largest file download: just above the largest attachment the portal downloads (30 MB).
+     * Only a read that accepts any content type (SdpClient's attachment download) may be this big.
+     */
+    public const MAX_DOWNLOAD_BYTES = 32 * 1024 * 1024;
 
     private ?Http $http = null;
 
@@ -213,6 +219,11 @@ final class JoomlaHttpTransport implements ParallelTransportInterface
             CURLOPT_NOSIGNAL       => true,
         ];
 
+        // A file download may be larger than an API answer.
+        if (str_contains($headers['Accept'] ?? '', '*/*')) {
+            $options = self::sizeLimit(self::MAX_DOWNLOAD_BYTES) + $options;
+        }
+
         $this->setCa($options);
 
         $share = $this->share();
@@ -362,12 +373,9 @@ final class JoomlaHttpTransport implements ParallelTransportInterface
             CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_SSL_VERIFYPEER => $this->config->verifySsl,
             CURLOPT_SSL_VERIFYHOST => $this->config->verifySsl ? 2 : 0,
-            // Size limit: MAXFILESIZE refuses an answer whose announced length is too big, the
-            // progress callback stops one without a length (chunked) once it gets too big.
-            CURLOPT_MAXFILESIZE      => self::MAX_RESPONSE_BYTES,
-            CURLOPT_NOPROGRESS       => false,
-            CURLOPT_XFERINFOFUNCTION => static fn ($handle, $downloadTotal, $downloaded): int => $downloaded > self::MAX_RESPONSE_BYTES ? 1 : 0,
         ];
+
+        $curl += self::sizeLimit(self::MAX_RESPONSE_BYTES);
 
         $connectTo = $this->config->connectToEntry();
 
@@ -383,6 +391,22 @@ final class JoomlaHttpTransport implements ParallelTransportInterface
         }
 
         return $curl;
+    }
+
+    /**
+     * cURL options that stop a response larger than $bytes: MAXFILESIZE refuses an answer whose
+     * announced length is too big, the progress callback stops one without a length (chunked)
+     * once it gets too big.
+     *
+     * @return array<int, mixed>
+     */
+    private static function sizeLimit(int $bytes): array
+    {
+        return [
+            CURLOPT_MAXFILESIZE      => $bytes,
+            CURLOPT_NOPROGRESS       => false,
+            CURLOPT_XFERINFOFUNCTION => static fn ($handle, $downloadTotal, $downloaded): int => $downloaded > $bytes ? 1 : 0,
+        ];
     }
 
     /** True when this PHP's cURL accepts a pinned public key (checked once per request). */
