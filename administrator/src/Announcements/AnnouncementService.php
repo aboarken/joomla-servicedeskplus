@@ -76,21 +76,34 @@ final class AnnouncementService
         $result = [];
         $hidden = [];
 
+        // The list may leave out the group list of a restricted announcement: the full ones that
+        // decide what this user sees are read at once.
+        $needFull = [];
+
         foreach ($page->items as $row) {
-            // The list may leave out the group list of a restricted announcement; read the full one
-            // when it decides what this user sees.
+            $id = SdpFields::string($row, 'id');
+
             if (
                 self::isRestricted($row) && !\is_array($row['user_groups'] ?? null)
                 && self::inPeriod($row, $now) && self::isPublic($row)
+                && preg_match('/^[1-9][0-9]{0,19}$/', $id)
                 && !$this->profile($identity, $client)['technician']
             ) {
-                try {
-                    $row = $client->getAnnouncement(SdpFields::string($row, 'id'));
-                } catch (SdpException | \InvalidArgumentException $e) {
-                    if ($e instanceof SdpException && \in_array($e->getKind(), [SdpException::NETWORK, SdpException::AUTH], true)) {
-                        throw $e;
-                    }
+                $needFull[] = $id;
+            }
+        }
+
+        $full = $client->getAnnouncements($needFull);
+
+        foreach ($page->items as $row) {
+            $read = $full[SdpFields::string($row, 'id')] ?? null;
+
+            if ($read instanceof SdpException) {
+                if (\in_array($read->getKind(), [SdpException::NETWORK, SdpException::AUTH], true)) {
+                    throw $read;
                 }
+            } elseif (\is_array($read)) {
+                $row = $read;
             }
 
             $reason = $this->hiddenReason($row, $identity, $client, $now);

@@ -279,13 +279,14 @@ $tiles = [
                         <p class="sdp-empty"><?php echo Text::_('COM_SERVICEDESKPLUS_CHART_EMPTY'); ?></p>
                     <?php else : ?>
                         <?php $prioMax = max(1, ...(array_column($priorities, 'count') ?: [1])); ?>
-                        <ul class="sdp-vbars" style="--sdp-vbars: <?php echo count($priorities); ?>">
+                        <?php // Classes, not style attributes: a strict Content-Security-Policy (style-src without 'unsafe-inline') blocks those. ?>
+                        <ul class="sdp-vbars sdp-vbars--n<?php echo min(12, count($priorities)); ?>">
                             <?php foreach ($priorities as $pr) : ?>
                                 <li class="sdp-vbar sdp-vbar--<?php echo $pr['other'] ? 'other' : ($pr['name'] === '' ? 'none' : 'named'); ?>"
                                     data-sdp-tip="<?php echo $e(Text::sprintf('COM_SERVICEDESKPLUS_CHART_TIP_SHARE', $pr['label'], $num($pr['count']), round($pct($pr['count'], $priorityTotal)))); ?>">
                                     <span class="sdp-vbar-track" aria-hidden="true">
                                         <span class="sdp-vbar-value"><?php echo $num($pr['count']); ?></span>
-                                        <span class="sdp-vbar-fill sdp-cat-<?php echo $pr['tone']; ?>" style="height: <?php echo max(2, $pct($pr['count'], $prioMax)); ?>%"></span>
+                                        <span class="sdp-vbar-fill sdp-cat-<?php echo $pr['tone']; ?> sdp-h-<?php echo (int) max(2, min(100, round($pct($pr['count'], $prioMax)))); ?>"></span>
                                     </span>
                                     <span class="visually-hidden"><?php echo $e($pr['label']); ?>: <?php echo $num($pr['count']); ?> (<?php echo round($pct($pr['count'], $priorityTotal)); ?>%)</span>
                                 </li>

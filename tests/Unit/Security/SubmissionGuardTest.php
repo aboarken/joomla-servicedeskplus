@@ -7,6 +7,7 @@
 namespace SdpPortal\Component\ServiceDeskPlus\Tests\Unit\Security;
 
 use PHPUnit\Framework\TestCase;
+use SdpPortal\Component\ServiceDeskPlus\Administrator\Security\DecisionLock;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Security\RateLimiter;
 use SdpPortal\Component\ServiceDeskPlus\Administrator\Security\SubmissionGuard;
 use SdpPortal\Component\ServiceDeskPlus\Tests\Support\RecordingAudit;
@@ -68,5 +69,29 @@ final class SubmissionGuardTest extends TestCase
         self::assertFalse($limiter->allow(7, 'approval.decide', 3));
         self::assertTrue($limiter->allow(8, 'approval.decide', 3));
         self::assertTrue($limiter->allow(7, 'request.create', 3));
+    }
+
+    public function testAOneTimeClaimSucceedsOnlyOnceAcrossInstances(): void
+    {
+        $dir = sys_get_temp_dir() . '/sdp-lock-test-' . bin2hex(random_bytes(4));
+        mkdir($dir);
+
+        try {
+            self::assertTrue((new DecisionLock($dir))->claim('request-token:7:abc'));
+            // A second request (another PHP process has its own object) is refused.
+            self::assertFalse((new DecisionLock($dir))->claim('request-token:7:abc'));
+            self::assertTrue((new DecisionLock($dir))->claim('request-token:7:other'));
+        } finally {
+            array_map('unlink', glob($dir . '/*') ?: []);
+            rmdir($dir);
+        }
+    }
+
+    public function testWithoutALockFolderWorkStillRuns(): void
+    {
+        $lock = new DecisionLock('/nonexistent/folder');
+
+        self::assertTrue($lock->claim('x'));
+        self::assertSame(42, $lock->run('x', static fn (): int => 42));
     }
 }

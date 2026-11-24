@@ -40,6 +40,8 @@ use SdpPortal\Component\ServiceDeskPlus\Administrator\Cache\UserCacheInterface;
  *  - Unmatched/ambiguous results are retried at most every RECHECK_SECONDS.
  *  - The API technician's e-mail (Integration Settings → Approvals) is never matched, and an
  *    active mapping with that e-mail is suspended.
+ *  - A mapping whose Joomla account was deleted is removed when its ServiceDesk Plus user is
+ *    matched again, so a new account of the same person can be linked.
  */
 final class IdentityResolver
 {
@@ -57,6 +59,7 @@ final class IdentityResolver
     /**
      * @param  \Closure(): SdpClient                    $clientFactory  Lazy, so active mappings need no SDP call
      * @param  (\Closure(): \DateTimeImmutable)|null    $clock
+     * @param  (\Closure(int): bool)|null               $userExists     Whether a Joomla user id still exists; null = not checked
      */
     public function __construct(
         private readonly UserMapRepositoryInterface $repository,
@@ -66,7 +69,8 @@ final class IdentityResolver
         ?\Closure $clock = null,
         private readonly ?UserCacheInterface $cache = null,
         private readonly bool $autoApprove = true,
-        private readonly string $apiAccountEmail = ''
+        private readonly string $apiAccountEmail = '',
+        private readonly ?\Closure $userExists = null
     ) {
         $this->clock = $clock ?? static fn (): \DateTimeImmutable => new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     }
@@ -191,6 +195,15 @@ final class IdentityResolver
         $sdpUserId = (string) array_key_first($ids);
         $detail    = 'sdp_user:' . $sdpUserId;
         $owner     = $this->repository->findBySdpUserId($sdpUserId);
+
+        // The mapping of a Joomla account that was deleted no longer holds the ServiceDesk Plus
+        // user: without this, a new account of the same person could never be matched.
+        if ($owner !== null && $owner->joomlaUserId !== $userId && $this->userExists !== null && !($this->userExists)($owner->joomlaUserId)) {
+            $this->repository->delete($owner->joomlaUserId);
+            $this->cache?->clearUser($owner->joomlaUserId);
+            $this->audit->record($owner->joomlaUserId, 'identity.orphan_removed', AuditLogInterface::RESULT_OK, null, null, 'joomla_user_deleted sdp_user:' . $sdpUserId);
+            $owner = null;
+        }
 
         if ($owner !== null && $owner->joomlaUserId !== $userId) {
             $this->logger->warning(\sprintf('SDP user %s is already mapped to Joomla user %d; not mapping user %d', $sdpUserId, $owner->joomlaUserId, $userId));

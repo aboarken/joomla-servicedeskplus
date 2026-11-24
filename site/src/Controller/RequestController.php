@@ -79,7 +79,16 @@ final class RequestController extends BaseController
             return;
         }
 
-        switch ($guard->consume($token)) {
+        $lock  = $this->sdpComponent()->getDecisionLock();
+        $state = $guard->consume($token);
+
+        // The session copy of the token is read when the request starts: of two submissions sent
+        // at the same moment both would find it unused. Only the first one claims it.
+        if ($state === SubmissionGuard::OK && !$lock->claim('request-token:' . $identity->joomlaUserId . ':' . $token)) {
+            $state = SubmissionGuard::USED;
+        }
+
+        switch ($state) {
             case SubmissionGuard::USED:
                 $previous = $guard->resultFor($token);
 
@@ -103,7 +112,11 @@ final class RequestController extends BaseController
             $files       = $this->input->files->get('attachments', [], 'raw');
             $attachments = (new AttachmentValidator())->validate(\is_array($files) ? array_values($files) : []);
 
-            $created = $this->sdpComponent()->getRequestService()->createForUser($identity, $subject, $description, $attachments);
+            // One request of a user at a time, so the hourly limit counts every earlier one.
+            $created = $lock->run(
+                'request-create:' . $identity->joomlaUserId,
+                fn () => $this->sdpComponent()->getRequestService()->createForUser($identity, $subject, $description, $attachments)
+            );
         } catch (InvalidRequestInput $e) {
             $this->keepInput($subject, $description);
 
